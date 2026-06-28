@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>__TITLE__</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============ THEME (dark-first; light variant in media query) ============ */
+:root{
+  --bg:#0d1117; --bg2:#0a0e14; --surface:#11161f; --surface2:#161c27;
+  --border:rgba(255,255,255,.08); --border-hi:rgba(255,255,255,.16);
+  --text:#e6edf3; --text-dim:#8b97a7; --text-faint:#5a6675;
+  --chunk:#f5a524; --chunk-bg:rgba(245,165,36,.12);
+  --group:#a78bfa; --group-bg:rgba(167,139,250,.12);
+  --package:#38bdf8; --package-bg:rgba(56,189,248,.12);
+  --file:#34d399; --file-bg:rgba(52,211,153,.12);
+  --function:#f472b6; --function-bg:rgba(244,114,182,.12);
+  --hit:#fde047; --hit-bg:rgba(253,224,71,.18);
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.25);
+}
+@media (prefers-color-scheme:light){
+  :root{
+    --bg:#f6f7f9; --bg2:#eef0f3; --surface:#ffffff; --surface2:#f3f5f8;
+    --border:rgba(10,15,25,.10); --border-hi:rgba(10,15,25,.18);
+    --text:#11161f; --text-dim:#5a6675; --text-faint:#9aa6b4;
+    --chunk:#b45309; --chunk-bg:rgba(245,165,36,.16);
+    --group:#6d28d9; --group-bg:rgba(167,139,250,.16);
+    --package:#0369a1; --package-bg:rgba(56,189,248,.16);
+    --file:#047857; --file-bg:rgba(52,211,153,.16);
+    --function:#be185d; --function-bg:rgba(244,114,182,.16);
+    --hit:#a16207; --hit-bg:rgba(253,224,71,.30);
+    --shadow:0 1px 2px rgba(10,15,25,.08),0 8px 24px rgba(10,15,25,.08);
+  }
+}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0}
+body{
+  font-family:'Space Grotesk',system-ui,sans-serif;
+  background:
+    radial-gradient(1200px 600px at 85% -10%, color-mix(in srgb,var(--chunk) 7%, transparent), transparent),
+    radial-gradient(900px 500px at 0% 0%, color-mix(in srgb,var(--package) 6%, transparent), transparent),
+    var(--bg);
+  background-attachment:fixed;
+  color:var(--text); line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1080px;margin:0 auto;padding:28px 20px 120px}
+
+/* ============ HEADER ============ */
+header.hero{margin-bottom:18px}
+.eyebrow{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--chunk);font-weight:600}
+h1{font-size:clamp(22px,3.4vw,32px);font-weight:700;margin:.25em 0 .15em;letter-spacing:-.01em}
+.sub{color:var(--text-dim);font-size:14px;max-width:70ch}
+.meta-line{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-faint);margin-top:8px}
+
+/* ============ KPI STRIP ============ */
+.kpis{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0 18px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 14px;box-shadow:var(--shadow);min-width:110px}
+.kpi .n{font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:600;letter-spacing:-.02em}
+.kpi .l{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-faint);margin-top:2px}
+
+/* ============ TOOLBAR (sticky) ============ */
+.toolbar{position:sticky;top:0;z-index:20;display:flex;flex-wrap:wrap;gap:8px;align-items:center;
+  padding:10px;margin:0 -10px 14px;background:color-mix(in srgb,var(--bg) 86%, transparent);
+  backdrop-filter:blur(10px);border-bottom:1px solid var(--border);border-radius:0 0 12px 12px}
+.search{flex:1 1 240px;display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;padding:8px 12px}
+.search:focus-within{border-color:var(--border-hi)}
+.search input{flex:1;background:none;border:none;outline:none;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px}
+.search svg{flex:none;color:var(--text-faint)}
+.btn{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-dim);background:var(--surface);
+  border:1px solid var(--border);border-radius:9px;padding:7px 10px;cursor:pointer;transition:.12s}
+.btn:hover{color:var(--text);border-color:var(--border-hi);background:var(--surface2)}
+.btn.active{color:var(--chunk);border-color:color-mix(in srgb,var(--chunk) 50%,var(--border))}
+.depth-grp{display:flex;gap:2px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:2px}
+.depth-grp .btn{border:none;background:none;padding:5px 9px;border-radius:7px}
+.depth-grp .btn.active{background:var(--chunk-bg)}
+
+/* ============ LEGEND ============ */
+.legend{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.dot{width:9px;height:9px;border-radius:3px;flex:none}
+.dot.chunk{background:var(--chunk)} .dot.group{background:var(--group)} .dot.package{background:var(--package)}
+.dot.file{background:var(--file)} .dot.function{background:var(--function)}
+
+/* ============ TREE ============ */
+.tree{list-style:none;margin:0;padding:0}
+.tree ul{list-style:none;margin:0;padding:0 0 0 22px;position:relative}
+.tree ul::before{content:"";position:absolute;left:10px;top:0;bottom:14px;width:1px;background:var(--border)}
+.node{position:relative}
+.row{display:flex;align-items:flex-start;gap:8px;padding:5px 8px;border-radius:8px;cursor:default;
+  border:1px solid transparent;transition:background .1s,border-color .1s}
+.row:hover{background:var(--surface)}
+.row.has-children{cursor:pointer}
+.row.hit{background:var(--hit-bg);border-color:color-mix(in srgb,var(--hit) 40%,transparent)}
+.caret{flex:none;width:16px;height:22px;display:flex;align-items:center;justify-content:center;color:var(--text-faint);
+  transition:transform .12s;font-size:10px;user-select:none}
+.caret.empty{visibility:hidden}
+.node.collapsed>.row .caret{transform:rotate(-90deg)}
+.badge{flex:none;margin-top:4px}
+.badge .dot{width:9px;height:9px}
+.label{flex:1;min-width:0}
+.nm{font-weight:600;font-size:13.5px;word-break:break-word}
+.nm .kindtag{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;
+  padding:1px 6px;border-radius:5px;margin-left:8px;vertical-align:1.5px;font-weight:600}
+.kindtag.chunk{color:var(--chunk);background:var(--chunk-bg)} .kindtag.group{color:var(--group);background:var(--group-bg)}
+.kindtag.package{color:var(--package);background:var(--package-bg)} .kindtag.file{color:var(--file);background:var(--file-bg)}
+.kindtag.function{color:var(--function);background:var(--function-bg)}
+.count{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-faint);margin-left:8px}
+.sm{display:block;color:var(--text-dim);font-size:12px;margin-top:1px;word-break:break-word}
+.ref{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-faint);margin-top:2px;word-break:break-all;text-decoration:none}
+a.ref{color:var(--package);cursor:pointer;transition:color .1s}
+a.ref:hover{text-decoration:underline;color:var(--text)}
+a.ref .arrow{opacity:.55}
+.row.linkable{cursor:pointer}
+.row.linkable:hover{background:var(--surface2)}
+mark{background:var(--hit-bg);color:var(--hit);border-radius:3px;padding:0 2px}
+.node.collapsed>ul{display:none}
+.hidden{display:none !important}
+
+/* ============ FUNCTION DETAIL PANEL (what it does + step-by-step) ============ */
+.detail{margin:1px 0 9px 30px;padding:11px 14px;background:var(--surface);border:1px solid var(--border);
+  border-left:2px solid var(--function);border-radius:8px;box-shadow:var(--shadow);max-width:78ch}
+.detail .dlabel{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--text-faint);display:block;margin-bottom:4px}
+.detail .what{color:var(--text);font-size:13px;line-height:1.55;margin-bottom:10px}
+.detail .what:last-child{margin-bottom:0}
+.detail ol{margin:0;padding-left:20px;counter-reset:step}
+.detail ol li{color:var(--text-dim);font-size:12.5px;line-height:1.55;margin:3px 0}
+.detail ol li::marker{color:var(--function);font-family:'JetBrains Mono',monospace;font-weight:600}
+.node.collapsed>.detail{display:none}
+.row.has-detail .caret{color:var(--function)}
+
+/* depth tint on the left rail of top chunks */
+.tree>.node>.row{background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow);margin-bottom:2px}
+.tree>.node>.row .nm{font-size:15px}
+
+footer{margin-top:40px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-faint);
+  border-top:1px solid var(--border);padding-top:14px}
+
+@media (prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.tree>.node{animation:fadeUp .4s both}
+.tree>.node:nth-child(2){animation-delay:.04s} .tree>.node:nth-child(3){animation-delay:.08s}
+.tree>.node:nth-child(4){animation-delay:.12s} .tree>.node:nth-child(5){animation-delay:.16s}
+.tree>.node:nth-child(6){animation-delay:.20s} .tree>.node:nth-child(7){animation-delay:.24s}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <div class="eyebrow">__EYEBROW__</div>
+    <h1>__TITLE__</h1>
+    <p class="sub">__SUBTITLE__</p>
+    <div class="meta-line">__META__</div>
+  </header>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="toolbar">
+    <label class="search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="q" type="text" placeholder="search functions, files, summaries…" spellcheck="false" autocomplete="off">
+    </label>
+    <button class="btn" id="expandAll">expand all</button>
+    <button class="btn" id="collapseAll">collapse all</button>
+    <div class="depth-grp" id="depthGrp">
+      <button class="btn" data-d="1">L1</button>
+      <button class="btn" data-d="2">L2</button>
+      <button class="btn" data-d="3">L3</button>
+      <button class="btn" data-d="4">L4</button>
+      <button class="btn" data-d="99">all</button>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><i class="dot chunk"></i>chunk</span>
+    <span><i class="dot group"></i>group</span>
+    <span><i class="dot package"></i>package</span>
+    <span><i class="dot file"></i>file</span>
+    <span><i class="dot function"></i>function</span>
+  </div>
+
+  <ul class="tree" id="tree"></ul>
+
+  <footer>__FOOTER__</footer>
+</div>
+
+<script>
+/* ============ DATA (injected) ============ */
+const TREE = __TREE_DATA__;
+
+/* ============ IDE DEEP-LINK ============ */
+/* REPO_ROOT  = absolute path of the repo root (refs are repo-relative).
+   IDE_MODE   = "vscode"    -> scheme://file/<abs>:<line>:<col>            (VS Code, Cursor, Windsurf, Antigravity IDE)
+              = "jetbrains" -> http://localhost:<port>/api/file/<abs>:<line>  (Android Studio, IntelliJ — built-in server)
+   IDE_SCHEME = the vscode-family URL scheme; IDE_PORT = JetBrains built-in server port (default 63342). */
+const REPO_ROOT  = "__REPO_ROOT__";
+const IDE_MODE   = "__IDE_MODE__";
+const IDE_SCHEME = "__IDE_SCHEME__";
+const IDE_PORT   = "__IDE_PORT__";
+function ideHref(ref){
+  if(!ref) return null;
+  const m = String(ref).match(/^(.*?):(\d+)(?::(\d+))?$/);
+  const rel = (m ? m[1] : ref).replace(/^\/+/, '');
+  const line = m ? m[2] : null, col = (m && m[3]) ? m[3] : null;
+  const abs = REPO_ROOT.replace(/\/+$/, '') + "/" + rel;   // REPO_ROOT is absolute (leading /)
+  const tail = line ? (":" + line + (col ? (":" + col) : "")) : "";
+  if(IDE_MODE === "jetbrains") return "http://localhost:" + IDE_PORT + "/api/file" + abs + tail;
+  return IDE_SCHEME + "://file" + abs + tail;
+}
+
+/* ============ STATS ============ */
+const KINDS=['chunk','group','package','file','function'];
+const counts={chunk:0,group:0,package:0,file:0,function:0};
+let maxDepth=0,explained=0;
+const hasDetail=n=>!!(n.explanation||(n.steps&&n.steps.length));
+(function walk(n,d){counts[n.kind]=(counts[n.kind]||0)+1;maxDepth=Math.max(maxDepth,d);
+  if(n.kind==='function'&&hasDetail(n))explained++;
+  (n.children||[]).forEach(c=>walk(c,d+1));})(TREE,0);
+function leafFns(n){if(!n.children||!n.children.length)return n.kind==='function'?1:0;
+  return n.children.reduce((s,c)=>s+leafFns(c),0);}
+const totalNodes=Object.values(counts).reduce((a,b)=>a+b,0);
+
+const kpis=[
+  {n:counts.function,l:'functions'},
+  {n:explained,l:'explained'},
+  {n:(TREE.children||[]).length,l:'top chunks'},
+  {n:counts.package,l:'packages'},
+  {n:counts.file,l:'files'},
+  {n:counts.group,l:'groups'},
+  {n:maxDepth,l:'max depth'},
+  {n:totalNodes,l:'total nodes'},
+];
+document.getElementById('kpis').innerHTML=kpis.map(k=>
+  `<div class="kpi"><div class="n">${k.n}</div><div class="l">${k.l}</div></div>`).join('');
+
+/* ============ RENDER ============ */
+const esc=s=>String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+function nodeEl(n,depth){
+  const li=document.createElement('li');
+  li.className='node';
+  const kids=n.children||[];
+  const hasKids=kids.length>0;
+  const detail=hasDetail(n);
+  const expandable=hasKids||detail;
+  const fns=leafFns(n);
+  const row=document.createElement('div');
+  row.className='row'+(expandable?' has-children':'')+(detail?' has-detail':'');
+  row.innerHTML=
+    `<span class="caret${expandable?'':' empty'}">▼</span>`+
+    `<span class="badge"><i class="dot ${n.kind}"></i></span>`+
+    `<span class="label"><span class="nm">${esc(n.name)}`+
+      `<span class="kindtag ${n.kind}">${n.kind}</span>`+
+      (hasKids&&fns?`<span class="count">${fns} fn${fns===1?'':'s'}</span>`:'')+
+    `</span>`+
+    (n.summary?`<span class="sm">${esc(n.summary)}</span>`:'')+
+    (n.ref?`<a class="ref" href="${esc(ideHref(n.ref))}" title="Open in IDE" onclick="event.stopPropagation()">${esc(n.ref)} <span class="arrow">↗</span></a>`:'')+
+    `</span>`;
+  li.appendChild(row);
+  if(hasKids){
+    const ul=document.createElement('ul');
+    kids.forEach(c=>ul.appendChild(nodeEl(c,depth+1)));
+    li.appendChild(ul);
+  }
+  if(detail){
+    li.classList.add('hasDetail');
+    const d=document.createElement('div');
+    d.className='detail';
+    let html='';
+    if(n.explanation) html+=`<span class="dlabel">what it does</span><div class="what">${esc(n.explanation)}</div>`;
+    if(n.steps&&n.steps.length) html+=`<span class="dlabel">how it works</span><ol>`+n.steps.map(s=>`<li>${esc(s)}</li>`).join('')+`</ol>`;
+    d.innerHTML=html;
+    li.appendChild(d);
+  }
+  if(expandable){
+    row.addEventListener('click',e=>{li.classList.toggle('collapsed');});
+    if(depth>=2) li.classList.add('collapsed'); // start with L1+L2 open
+  } else if(n.ref){
+    row.classList.add('linkable');
+    row.addEventListener('click',()=>{window.location.href=ideHref(n.ref);});
+  }
+  li._node=n; li._depth=depth;
+  return li;
+}
+const treeRoot=document.getElementById('tree');
+(TREE.children||[]).forEach(c=>treeRoot.appendChild(nodeEl(c,1)));
+
+/* ============ CONTROLS ============ */
+const allNodes=()=>Array.from(treeRoot.querySelectorAll('.node'));
+const isExpandable=n=>n.querySelector('ul')||n.classList.contains('hasDetail');
+document.getElementById('expandAll').onclick=()=>{allNodes().forEach(n=>n.classList.remove('collapsed'));setDepthActive(null);};
+document.getElementById('collapseAll').onclick=()=>{allNodes().forEach(n=>{if(isExpandable(n))n.classList.add('collapsed');});setDepthActive(null);};
+function applyDepth(d){allNodes().forEach(n=>{if(!isExpandable(n))return;
+  if(n._depth<d)n.classList.remove('collapsed');else n.classList.add('collapsed');});}
+function setDepthActive(d){document.querySelectorAll('#depthGrp .btn').forEach(b=>
+  b.classList.toggle('active',String(d)===b.dataset.d));}
+document.querySelectorAll('#depthGrp .btn').forEach(b=>b.onclick=()=>{
+  const d=+b.dataset.d;applyDepth(d===99?99:d);setDepthActive(d);});
+applyDepth(2);setDepthActive(2);
+
+/* ============ SEARCH ============ */
+const q=document.getElementById('q');
+let t;
+q.addEventListener('input',()=>{clearTimeout(t);t=setTimeout(runSearch,120);});
+function runSearch(){
+  const term=q.value.trim().toLowerCase();
+  // clear marks + hits
+  allNodes().forEach(n=>{n.classList.remove('hidden');
+    const row=n.querySelector(':scope>.row');row.classList.remove('hit');
+    row.querySelectorAll('mark').forEach(m=>m.replaceWith(...m.childNodes));});
+  if(!term){applyDepth(2);setDepthActive(2);return;}
+  setDepthActive(null);
+  allNodes().forEach(n=>{
+    const node=n._node;
+    const hay=[(node.name||''),(node.summary||''),(node.ref||''),(node.explanation||''),((node.steps||[]).join(' '))].join(' ').toLowerCase();
+    const match=hay.includes(term);
+    n.dataset.match=match?'1':'';
+    if(match){
+      n.querySelector(':scope>.row').classList.add('hit');
+      highlight(n.querySelector(':scope>.row .nm'),term);
+    }
+  });
+  // show a node if it matches OR has a matching descendant; expand ancestors of matches
+  allNodes().forEach(n=>{
+    const selfOrDesc=n.dataset.match==='1'||n.querySelector('.node[data-match="1"]');
+    n.classList.toggle('hidden',!selfOrDesc);
+    if(selfOrDesc&&isExpandable(n))n.classList.remove('collapsed');
+  });
+}
+function highlight(el,term){
+  if(!el)return;const txt=el.firstChild;if(!txt||txt.nodeType!==3)return;
+  const i=txt.nodeValue.toLowerCase().indexOf(term);if(i<0)return;
+  const m=document.createElement('mark');m.textContent=txt.nodeValue.slice(i,i+term.length);
+  const after=txt.splitText(i);after.nodeValue=after.nodeValue.slice(term.length);
+  el.insertBefore(m,after);
+}
+</script>
+</body>
+</html>

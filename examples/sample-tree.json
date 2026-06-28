@@ -1,0 +1,87 @@
+{
+  "name": "Todo App",
+  "kind": "chunk",
+  "summary": "Tiny example tree — a toy todo service",
+  "children": [
+    {
+      "name": "API",
+      "kind": "group",
+      "summary": "HTTP handlers",
+      "children": [
+        {
+          "name": "handlers.ts",
+          "kind": "file",
+          "ref": "src/api/handlers.ts",
+          "children": [
+            {
+              "name": "createTodo",
+              "kind": "function",
+              "ref": "src/api/handlers.ts:12",
+              "summary": "Creates a todo from the request body",
+              "explanation": "HTTP POST handler that validates the incoming payload, persists a new todo, and returns it as JSON with a 201 status.",
+              "steps": [
+                "Parse and validate the JSON body (title required, non-empty)",
+                "On invalid input, respond 400 with the validation error",
+                "Call todoRepo.insert() to persist the new row",
+                "Return the created todo as JSON with status 201"
+              ]
+            },
+            {
+              "name": "listTodos",
+              "kind": "function",
+              "ref": "src/api/handlers.ts:34",
+              "summary": "Lists todos with optional status filter",
+              "explanation": "HTTP GET handler that returns all todos, optionally filtered by a ?status= query parameter.",
+              "steps": [
+                "Read the optional status query parameter",
+                "If present, pass it as a filter to todoRepo.list()",
+                "Otherwise list all todos",
+                "Serialize the array to JSON and respond 200"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Storage",
+      "kind": "group",
+      "summary": "Persistence layer",
+      "children": [
+        {
+          "name": "todo-repo.ts",
+          "kind": "file",
+          "ref": "src/storage/todo-repo.ts",
+          "children": [
+            {
+              "name": "insert",
+              "kind": "function",
+              "ref": "src/storage/todo-repo.ts:8",
+              "summary": "Inserts a todo and returns it with an id",
+              "explanation": "Writes a new todo row to the database and returns the persisted record including its generated id and timestamps.",
+              "steps": [
+                "Generate a UUID and createdAt timestamp",
+                "Run the parameterized INSERT statement",
+                "Map the returned row to a Todo object",
+                "Return the persisted Todo"
+              ]
+            },
+            {
+              "name": "list",
+              "kind": "function",
+              "ref": "src/storage/todo-repo.ts:21",
+              "summary": "Queries todos, optionally by status",
+              "explanation": "Reads todos from the database, applying a status filter when one is provided, ordered newest first.",
+              "steps": [
+                "Build the base SELECT ordered by createdAt DESC",
+                "If a status filter is given, append a WHERE clause and bind it",
+                "Execute the query",
+                "Map each row to a Todo and return the array"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

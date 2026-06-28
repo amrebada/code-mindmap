@@ -1,0 +1,11 @@
+{
+  "rootPath": "./examples/sample-tree.json",
+  "outPath": "./examples/sample-mindmap.html",
+  "repoRoot": "/path/to/your/checkout",
+  "editor": "vscode",
+  "title": "Todo App — Code Mind Map",
+  "eyebrow": "Rule-of-7 structural atlas",
+  "subtitle": "A tiny example tree. Click a function to read what it does and how it works; click its path to open it in your editor.",
+  "footer": "Example output of the code-mindmap skill.",
+  "date": "2026-06-28"
+}
