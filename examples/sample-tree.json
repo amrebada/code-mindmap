@@ -44,6 +44,51 @@
       ]
     },
     {
+      "name": "Domain",
+      "kind": "group",
+      "summary": "Validation & shared types",
+      "children": [
+        {
+          "name": "validate.ts",
+          "kind": "file",
+          "ref": "src/domain/validate.ts",
+          "children": [
+            {
+              "name": "validateTodoInput",
+              "kind": "function",
+              "ref": "src/domain/validate.ts:6",
+              "summary": "Validates a raw todo payload",
+              "explanation": "Checks an untrusted request body against the Todo shape and returns either the cleaned input or a list of field errors.",
+              "steps": [
+                "Assert the body is a non-null object",
+                "Require a non-empty string title, trimming whitespace",
+                "Coerce the optional status against the allowed set",
+                "Return { ok, value } or { ok:false, errors }"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "types.ts",
+          "kind": "file",
+          "ref": "src/domain/types.ts",
+          "children": [
+            {
+              "name": "isStatus",
+              "kind": "function",
+              "ref": "src/domain/types.ts:9",
+              "summary": "Type guard for the status enum",
+              "explanation": "Narrows an arbitrary string to the TodoStatus union so callers can trust it downstream.",
+              "steps": [
+                "Test membership in the STATUSES tuple",
+                "Return the boolean type-predicate result"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Storage",
       "kind": "group",
       "summary": "Persistence layer",
@@ -77,6 +122,26 @@
                 "If a status filter is given, append a WHERE clause and bind it",
                 "Execute the query",
                 "Map each row to a Todo and return the array"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "db.ts",
+          "kind": "file",
+          "ref": "src/storage/db.ts",
+          "children": [
+            {
+              "name": "query",
+              "kind": "function",
+              "ref": "src/storage/db.ts:14",
+              "summary": "Runs a parameterized SQL query",
+              "explanation": "Thin wrapper over the connection pool that executes a parameterized statement and returns the resulting rows.",
+              "steps": [
+                "Acquire a client from the pool",
+                "Execute the SQL with bound parameters",
+                "Release the client in a finally block",
+                "Return the rows array"
               ]
             }
           ]

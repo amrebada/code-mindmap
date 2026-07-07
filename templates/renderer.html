@@ -19,7 +19,9 @@
   --file:#34d399; --file-bg:rgba(52,211,153,.12);
   --function:#f472b6; --function-bg:rgba(244,114,182,.12);
   --hit:#fde047; --hit-bg:rgba(253,224,71,.18);
+  --pk:#f5a524; --fk:#38bdf8; --uq:#a78bfa;
   --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.25);
+  --line:rgba(139,151,167,.28); --line-hi:#38bdf8;
 }
 @media (prefers-color-scheme:light){
   :root{
@@ -32,7 +34,9 @@
     --file:#047857; --file-bg:rgba(52,211,153,.16);
     --function:#be185d; --function-bg:rgba(244,114,182,.16);
     --hit:#a16207; --hit-bg:rgba(253,224,71,.30);
+    --pk:#b45309; --fk:#0369a1; --uq:#6d28d9;
     --shadow:0 1px 2px rgba(10,15,25,.08),0 8px 24px rgba(10,15,25,.08);
+    --line:rgba(90,102,117,.30); --line-hi:#0369a1;
   }
 }
 *{box-sizing:border-box;min-width:0}
@@ -62,6 +66,19 @@ h1{font-size:clamp(22px,3.4vw,32px);font-weight:700;margin:.25em 0 .15em;letter-
 .kpi .n{font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:600;letter-spacing:-.02em}
 .kpi .l{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-faint);margin-top:2px}
 
+/* ============ VIEW SWITCHER ============ */
+.viewswitch{display:inline-flex;gap:3px;background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:4px;margin:2px 0 18px;box-shadow:var(--shadow)}
+.viewswitch button{font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:600;color:var(--text-dim);
+  background:none;border:none;border-radius:9px;padding:8px 16px;cursor:pointer;transition:.14s;display:inline-flex;align-items:center;gap:7px}
+.viewswitch button:hover{color:var(--text)}
+.viewswitch button.active{color:var(--text);background:var(--surface2);box-shadow:inset 0 0 0 1px var(--border-hi)}
+.viewswitch button svg{width:15px;height:15px;flex:none}
+.viewswitch button .vcount{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--text-faint);
+  background:var(--bg2);border-radius:6px;padding:1px 6px}
+.view{display:none;animation:fadeUp .3s both}
+.view.active{display:block}
+
 /* ============ TOOLBAR (sticky) ============ */
 .toolbar{position:sticky;top:0;z-index:20;display:flex;flex-wrap:wrap;gap:8px;align-items:center;
   padding:10px;margin:0 -10px 14px;background:color-mix(in srgb,var(--bg) 86%, transparent);
@@ -78,6 +95,7 @@ h1{font-size:clamp(22px,3.4vw,32px);font-weight:700;margin:.25em 0 .15em;letter-
 .depth-grp{display:flex;gap:2px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:2px}
 .depth-grp .btn{border:none;background:none;padding:5px 9px;border-radius:7px}
 .depth-grp .btn.active{background:var(--chunk-bg)}
+.hint{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-faint);margin-left:auto;padding:0 4px}
 
 /* ============ LEGEND ============ */
 .legend{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim)}
@@ -85,6 +103,7 @@ h1{font-size:clamp(22px,3.4vw,32px);font-weight:700;margin:.25em 0 .15em;letter-
 .dot{width:9px;height:9px;border-radius:3px;flex:none}
 .dot.chunk{background:var(--chunk)} .dot.group{background:var(--group)} .dot.package{background:var(--package)}
 .dot.file{background:var(--file)} .dot.function{background:var(--function)}
+.legend .ln{width:16px;height:0;border-top:2px solid var(--line-hi);border-radius:2px}
 
 /* ============ TREE ============ */
 .tree{list-style:none;margin:0;padding:0}
@@ -138,8 +157,92 @@ mark{background:var(--hit-bg);color:var(--hit);border-radius:3px;padding:0 2px}
 .tree>.node>.row{background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow);margin-bottom:2px}
 .tree>.node>.row .nm{font-size:15px}
 
-footer{margin-top:40px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-faint);
-  border-top:1px solid var(--border);padding-top:14px}
+/* ============ CONNECTOR CANVAS (shared: relationships + ERD) ============ */
+.board{position:relative;margin-top:4px}
+.board-svg{position:absolute;top:0;left:0;overflow:visible;pointer-events:none;z-index:0}
+.board-svg path{fill:none;stroke:var(--line);stroke-width:1.5;transition:stroke .15s,opacity .15s}
+.board-svg path.hi{stroke:var(--line-hi);stroke-width:2.25;opacity:1}
+.board-svg path.dim{opacity:.12}
+.grid{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;position:relative;z-index:1}
+
+/* ============ RELATIONSHIPS VIEW (collapsible topic blocks) ============ */
+.topic-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);
+  flex:1 1 300px;max-width:420px;min-width:260px;overflow:hidden;transition:border-color .15s,box-shadow .15s;position:relative;z-index:1}
+.topic-card.connected{border-color:color-mix(in srgb,var(--line-hi) 55%,var(--border))}
+.topic-card .topic-head{display:flex;align-items:center;gap:9px;padding:12px 14px;cursor:pointer;user-select:none;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--chunk) 8%,transparent),transparent)}
+.topic-head:hover{background:linear-gradient(180deg,color-mix(in srgb,var(--chunk) 13%,transparent),transparent)}
+.topic-head .tcaret{color:var(--text-faint);font-size:10px;transition:transform .14s;width:12px;text-align:center}
+.topic-card.collapsed .topic-head .tcaret{transform:rotate(-90deg)}
+.topic-head .tname{font-weight:700;font-size:14.5px;flex:1;min-width:0;word-break:break-word}
+.topic-head .tmeta{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--text-faint);flex:none}
+.topic-head .xlinks{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;color:var(--fk);
+  background:color-mix(in srgb,var(--fk) 14%,transparent);border-radius:6px;padding:2px 7px;flex:none}
+.topic-card.collapsed .topic-body{display:none}
+.topic-body{padding:6px;border-top:1px solid var(--border)}
+.grp-label{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--text-faint);padding:8px 8px 3px}
+.file-row{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:8px;cursor:pointer;
+  border:1px solid transparent;transition:background .12s,border-color .12s}
+.file-row:hover{background:var(--surface2)}
+.file-row.sel{background:color-mix(in srgb,var(--line-hi) 12%,transparent);border-color:color-mix(in srgb,var(--line-hi) 45%,var(--border))}
+.file-row.connected{background:color-mix(in srgb,var(--line-hi) 7%,transparent);border-color:color-mix(in srgb,var(--line-hi) 28%,var(--border))}
+.file-row.faded{opacity:.4}
+.file-row .fname{font-family:'JetBrains Mono',monospace;font-size:12.5px;font-weight:500;flex:1;min-width:0;word-break:break-all}
+.file-row .grp-path{font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--text-faint);flex:none;
+  background:var(--bg2);border-radius:5px;padding:1px 6px;max-width:38%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-row .lcount{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-faint);flex:none;display:inline-flex;align-items:center;gap:3px}
+.file-row .lcount svg{width:11px;height:11px;opacity:.7}
+.file-row a.fopen{color:var(--text-faint);flex:none;display:inline-flex;opacity:0;transition:opacity .12s}
+.file-row:hover a.fopen{opacity:.7}
+.file-row a.fopen:hover{color:var(--line-hi);opacity:1}
+.rel-empty{color:var(--text-dim);font-size:13px;padding:24px;text-align:center;background:var(--surface);
+  border:1px dashed var(--border);border-radius:12px}
+
+/* ============ DATABASE / ERD VIEW ============ */
+.erd-board{background-image:radial-gradient(var(--border) 1px, transparent 1px);background-size:22px 22px;
+  border:1px solid var(--border);border-radius:14px;padding:18px;margin-top:4px}
+.tbl-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;
+  box-shadow:var(--shadow);flex:0 1 300px;min-width:240px;max-width:360px;transition:border-color .15s,box-shadow .15s,transform .15s;
+  position:relative;z-index:1}
+.tbl-card:hover{border-color:var(--border-hi);transform:translateY(-2px)}
+.tbl-card.connected{border-color:color-mix(in srgb,var(--fk) 55%,var(--border));box-shadow:0 0 0 1px color-mix(in srgb,var(--fk) 40%,transparent),var(--shadow)}
+.tbl-card.faded{opacity:.4}
+.tbl-head{display:flex;align-items:center;gap:9px;padding:11px 13px;font-weight:700;font-size:14px;
+  background:linear-gradient(135deg,color-mix(in srgb,var(--package) 22%,var(--surface)),color-mix(in srgb,var(--group) 14%,var(--surface)));
+  border-bottom:1px solid var(--border)}
+.tbl-head svg{width:16px;height:16px;flex:none;color:var(--package)}
+.tbl-head .tbl-name{flex:1;min-width:0;word-break:break-word;letter-spacing:-.01em}
+.tbl-head .tbl-open{color:var(--text-faint);opacity:0;transition:opacity .12s;display:inline-flex}
+.tbl-card:hover .tbl-head .tbl-open{opacity:.7}
+.tbl-head .tbl-open:hover{color:var(--package);opacity:1}
+.tbl-head .tbl-n{font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:600;color:var(--text-faint);
+  background:var(--bg2);border-radius:6px;padding:2px 7px;flex:none}
+.tbl-sum{font-size:11.5px;color:var(--text-dim);padding:7px 13px 3px;border-bottom:1px solid var(--border)}
+.tbl-cols{padding:4px 0}
+.col-row{display:flex;align-items:center;gap:8px;padding:5px 13px;font-size:12.5px;transition:background .1s}
+.col-row:hover{background:var(--surface2)}
+.col-row.pk{background:color-mix(in srgb,var(--pk) 8%,transparent)}
+.col-row .col-key{flex:none;width:14px;display:inline-flex;justify-content:center}
+.col-row .col-key svg{width:12px;height:12px}
+.col-key.is-pk svg{color:var(--pk)} .col-key.is-fk svg{color:var(--fk)}
+.col-name{font-family:'JetBrains Mono',monospace;font-weight:500;flex:1;min-width:0;word-break:break-all}
+.col-name.pkcol{color:var(--text)}
+.col-type{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim);flex:none;max-width:45%;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.col-flags{display:inline-flex;gap:3px;flex:none}
+.flag{font-family:'JetBrains Mono',monospace;font-size:8.5px;font-weight:700;letter-spacing:.05em;
+  border-radius:4px;padding:1px 4px;line-height:1.4}
+.flag.pk{color:var(--pk);background:color-mix(in srgb,var(--pk) 16%,transparent)}
+.flag.fk{color:var(--fk);background:color-mix(in srgb,var(--fk) 16%,transparent)}
+.flag.uq{color:var(--uq);background:color-mix(in srgb,var(--uq) 16%,transparent)}
+.flag.nn{color:var(--text-faint);background:var(--bg2)}
+.enum-card{flex:0 1 240px;min-width:200px}
+.enum-card .tbl-head{background:linear-gradient(135deg,color-mix(in srgb,var(--group) 22%,var(--surface)),transparent)}
+.enum-card .tbl-head svg{color:var(--group)}
+.enum-vals{display:flex;flex-wrap:wrap;gap:5px;padding:10px 13px}
+.enum-vals span{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--group);
+  background:var(--group-bg);border-radius:6px;padding:2px 8px}
 
 @media (prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important}}
 @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
@@ -147,6 +250,9 @@ footer{margin-top:40px;font-family:'JetBrains Mono',monospace;font-size:11px;col
 .tree>.node:nth-child(2){animation-delay:.04s} .tree>.node:nth-child(3){animation-delay:.08s}
 .tree>.node:nth-child(4){animation-delay:.12s} .tree>.node:nth-child(5){animation-delay:.16s}
 .tree>.node:nth-child(6){animation-delay:.20s} .tree>.node:nth-child(7){animation-delay:.24s}
+
+footer{margin-top:40px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-faint);
+  border-top:1px solid var(--border);padding-top:14px}
 </style>
 </head>
 <body>
@@ -160,38 +266,87 @@ footer{margin-top:40px;font-family:'JetBrains Mono',monospace;font-size:11px;col
 
   <div class="kpis" id="kpis"></div>
 
-  <div class="toolbar">
-    <label class="search">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-      <input id="q" type="text" placeholder="search functions, files, summaries…" spellcheck="false" autocomplete="off">
-    </label>
-    <button class="btn" id="expandAll">expand all</button>
-    <button class="btn" id="collapseAll">collapse all</button>
-    <div class="depth-grp" id="depthGrp">
-      <button class="btn" data-d="1">L1</button>
-      <button class="btn" data-d="2">L2</button>
-      <button class="btn" data-d="3">L3</button>
-      <button class="btn" data-d="4">L4</button>
-      <button class="btn" data-d="99">all</button>
+  <div class="viewswitch" id="viewswitch"></div>
+
+  <!-- ======================= MIND MAP VIEW ======================= -->
+  <section class="view active" id="view-map">
+    <div class="toolbar">
+      <label class="search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="q" type="text" placeholder="search functions, files, summaries…" spellcheck="false" autocomplete="off">
+      </label>
+      <button class="btn" id="expandAll">expand all</button>
+      <button class="btn" id="collapseAll">collapse all</button>
+      <div class="depth-grp" id="depthGrp">
+        <button class="btn" data-d="1">L1</button>
+        <button class="btn" data-d="2">L2</button>
+        <button class="btn" data-d="3">L3</button>
+        <button class="btn" data-d="4">L4</button>
+        <button class="btn" data-d="99">all</button>
+      </div>
     </div>
-  </div>
 
-  <div class="legend">
-    <span><i class="dot chunk"></i>chunk</span>
-    <span><i class="dot group"></i>group</span>
-    <span><i class="dot package"></i>package</span>
-    <span><i class="dot file"></i>file</span>
-    <span><i class="dot function"></i>function</span>
-  </div>
+    <div class="legend">
+      <span><i class="dot chunk"></i>chunk</span>
+      <span><i class="dot group"></i>group</span>
+      <span><i class="dot package"></i>package</span>
+      <span><i class="dot file"></i>file</span>
+      <span><i class="dot function"></i>function</span>
+    </div>
 
-  <ul class="tree" id="tree"></ul>
+    <ul class="tree" id="tree"></ul>
+  </section>
+
+  <!-- ======================= RELATIONSHIPS VIEW ======================= -->
+  <section class="view" id="view-rel">
+    <div class="toolbar">
+      <label class="search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="relq" type="text" placeholder="search topics & files…" spellcheck="false" autocomplete="off">
+      </label>
+      <button class="btn" id="relExpand">expand all</button>
+      <button class="btn" id="relCollapse">collapse all</button>
+      <button class="btn" id="relShowAll">show all links</button>
+      <button class="btn" id="relClear">clear</button>
+      <span class="hint" id="relHint">click a file to trace its links</span>
+    </div>
+    <div class="legend" id="relLegend"></div>
+    <div class="board" id="relBoard">
+      <svg class="board-svg" id="relSvg"></svg>
+      <div class="grid" id="relGrid"></div>
+    </div>
+  </section>
+
+  <!-- ======================= DATABASE / ERD VIEW ======================= -->
+  <section class="view" id="view-db">
+    <div class="toolbar">
+      <label class="search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="dbq" type="text" placeholder="search tables & columns…" spellcheck="false" autocomplete="off">
+      </label>
+      <button class="btn active" id="dbLines">relations</button>
+      <span class="hint" id="dbHint">hover a table to highlight its foreign keys</span>
+    </div>
+    <div class="legend">
+      <span><i class="dot" style="background:var(--pk)"></i>primary key</span>
+      <span><i class="dot" style="background:var(--fk)"></i>foreign key</span>
+      <span><i class="dot" style="background:var(--uq)"></i>unique</span>
+      <span><i class="ln"></i>relation</span>
+    </div>
+    <div class="erd-board board" id="dbBoard">
+      <svg class="board-svg" id="dbSvg"></svg>
+      <div class="grid" id="dbGrid"></div>
+    </div>
+  </section>
 
   <footer>__FOOTER__</footer>
 </div>
 
 <script>
 /* ============ DATA (injected) ============ */
-const TREE = __TREE_DATA__;
+const TREE   = __TREE_DATA__;
+const EDGES  = __EDGES_DATA__ || [];      // [{from,to,kind?,label?}] — file relationships (repo-relative paths)
+const SCHEMA = __SCHEMA_DATA__ || null;   // {tables:[...], enums?:[...]} — database schema (optional)
 
 /* ============ IDE DEEP-LINK ============ */
 /* REPO_ROOT  = absolute path of the repo root (refs are repo-relative).
@@ -224,6 +379,9 @@ const hasDetail=n=>!!(n.explanation||(n.steps&&n.steps.length));
 function leafFns(n){if(!n.children||!n.children.length)return n.kind==='function'?1:0;
   return n.children.reduce((s,c)=>s+leafFns(c),0);}
 const totalNodes=Object.values(counts).reduce((a,b)=>a+b,0);
+const hasRel = EDGES.length>0;
+const hasDb  = !!(SCHEMA && Array.isArray(SCHEMA.tables) && SCHEMA.tables.length);
+const dbColCount = hasDb ? SCHEMA.tables.reduce((s,t)=>s+((t.columns||[]).length),0) : 0;
 
 const kpis=[
   {n:counts.function,l:'functions'},
@@ -231,15 +389,17 @@ const kpis=[
   {n:(TREE.children||[]).length,l:'top chunks'},
   {n:counts.package,l:'packages'},
   {n:counts.file,l:'files'},
-  {n:counts.group,l:'groups'},
-  {n:maxDepth,l:'max depth'},
-  {n:totalNodes,l:'total nodes'},
 ];
+if(hasRel) kpis.push({n:EDGES.length,l:'relations'});
+if(hasDb){ kpis.push({n:SCHEMA.tables.length,l:'tables'}); kpis.push({n:dbColCount,l:'columns'}); }
+kpis.push({n:maxDepth,l:'max depth'});
 document.getElementById('kpis').innerHTML=kpis.map(k=>
   `<div class="kpi"><div class="n">${k.n}</div><div class="l">${k.l}</div></div>`).join('');
 
-/* ============ RENDER ============ */
 const esc=s=>String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const escAttr=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ============ MIND MAP RENDER ============ */
 function nodeEl(n,depth){
   const li=document.createElement('li');
   li.className='node';
@@ -258,7 +418,7 @@ function nodeEl(n,depth){
       (hasKids&&fns?`<span class="count">${fns} fn${fns===1?'':'s'}</span>`:'')+
     `</span>`+
     (n.summary?`<span class="sm">${esc(n.summary)}</span>`:'')+
-    (n.ref?`<a class="ref" href="${esc(ideHref(n.ref))}" title="Open in IDE" onclick="event.stopPropagation()">${esc(n.ref)} <span class="arrow">↗</span></a>`:'')+
+    (n.ref?`<a class="ref" href="${escAttr(ideHref(n.ref))}" title="Open in IDE" onclick="event.stopPropagation()">${esc(n.ref)} <span class="arrow">↗</span></a>`:'')+
     `</span>`;
   li.appendChild(row);
   if(hasKids){
@@ -289,7 +449,7 @@ function nodeEl(n,depth){
 const treeRoot=document.getElementById('tree');
 (TREE.children||[]).forEach(c=>treeRoot.appendChild(nodeEl(c,1)));
 
-/* ============ CONTROLS ============ */
+/* ============ MAP CONTROLS ============ */
 const allNodes=()=>Array.from(treeRoot.querySelectorAll('.node'));
 const isExpandable=n=>n.querySelector('ul')||n.classList.contains('hasDetail');
 document.getElementById('expandAll').onclick=()=>{allNodes().forEach(n=>n.classList.remove('collapsed'));setDepthActive(null);};
@@ -302,13 +462,12 @@ document.querySelectorAll('#depthGrp .btn').forEach(b=>b.onclick=()=>{
   const d=+b.dataset.d;applyDepth(d===99?99:d);setDepthActive(d);});
 applyDepth(2);setDepthActive(2);
 
-/* ============ SEARCH ============ */
+/* ============ MAP SEARCH ============ */
 const q=document.getElementById('q');
 let t;
 q.addEventListener('input',()=>{clearTimeout(t);t=setTimeout(runSearch,120);});
 function runSearch(){
   const term=q.value.trim().toLowerCase();
-  // clear marks + hits
   allNodes().forEach(n=>{n.classList.remove('hidden');
     const row=n.querySelector(':scope>.row');row.classList.remove('hit');
     row.querySelectorAll('mark').forEach(m=>m.replaceWith(...m.childNodes));});
@@ -324,7 +483,6 @@ function runSearch(){
       highlight(n.querySelector(':scope>.row .nm'),term);
     }
   });
-  // show a node if it matches OR has a matching descendant; expand ancestors of matches
   allNodes().forEach(n=>{
     const selfOrDesc=n.dataset.match==='1'||n.querySelector('.node[data-match="1"]');
     n.classList.toggle('hidden',!selfOrDesc);
@@ -338,6 +496,314 @@ function highlight(el,term){
   const after=txt.splitText(i);after.nodeValue=after.nodeValue.slice(term.length);
   el.insertBefore(m,after);
 }
+
+/* ============ SHARED CONNECTOR GEOMETRY ============ */
+const normRef=r=>String(r||'').replace(/:\d+.*$/,'').replace(/^\/+/,'');
+function anchor(el,container){
+  const r=el.getBoundingClientRect(), c=container.getBoundingClientRect();
+  const L=r.left-c.left+container.scrollLeft, R=r.right-c.left+container.scrollLeft;
+  const T=r.top-c.top+container.scrollTop, B=r.bottom-c.top+container.scrollTop;
+  return {L,R,T,B,midX:(L+R)/2,midY:(T+B)/2};
+}
+function linkPath(A,B){
+  let x1,x2; const y1=A.midY, y2=B.midY;
+  if(B.midX>=A.midX){ x1=A.R; x2=B.L; } else { x1=A.L; x2=B.R; }
+  const dx=Math.max(28,Math.abs(x2-x1)*0.42);
+  const c1=x1+(x2>=x1?dx:-dx), c2=x2+(x2>=x1?-dx:dx);
+  return `M${x1} ${y1} C${c1} ${y1} ${c2} ${y2} ${x2} ${y2}`;
+}
+function sizeSvg(svg,container){
+  const w=container.scrollWidth, h=container.scrollHeight;
+  svg.setAttribute('width',w); svg.setAttribute('height',h);
+  svg.setAttribute('viewBox',`0 0 ${w} ${h}`);
+}
+
+/* ============ RELATIONSHIPS VIEW ============ */
+const relBoard=document.getElementById('relBoard'), relGrid=document.getElementById('relGrid'), relSvg=document.getElementById('relSvg');
+const fileIndex=new Map();   // normRef -> {topicIdx, rowEl, node}
+const topicCards=[];         // {idx, card, head, files:[normRef]}
+let relSelected=null, relShowAll=false;
+
+function gatherFiles(node,gpath){
+  let out=[];
+  if(node.kind==='file') out.push({node,gpath});
+  for(const c of (node.children||[])){
+    const seg=(c.kind==='group'||c.kind==='package')?c.name:null;
+    out=out.concat(gatherFiles(c, seg?gpath.concat(seg):gpath));
+  }
+  return out;
+}
+function edgesFor(ref){ return EDGES.filter(e=>normRef(e.from)===ref||normRef(e.to)===ref); }
+const EDGE_KINDS={};
+EDGES.forEach(e=>{ const k=(e.kind||'link'); EDGE_KINDS[k]=(EDGE_KINDS[k]||0)+1; });
+
+function buildRel(){
+  if(!hasRel) return;
+  // relationship-kind legend
+  const relLegend=document.getElementById('relLegend');
+  relLegend.innerHTML=`<span><i class="dot chunk"></i>topic</span><span><i class="dot file"></i>file</span>`+
+    `<span><i class="ln"></i>relation</span>`+
+    Object.keys(EDGE_KINDS).map(k=>`<span style="color:var(--text-faint)">${esc(k)} · ${EDGE_KINDS[k]}</span>`).join('');
+
+  (TREE.children||[]).forEach((topic,idx)=>{
+    const files=gatherFiles(topic,[]);
+    const card=document.createElement('div');
+    card.className='topic-card';
+    const head=document.createElement('div');
+    head.className='topic-head';
+    head.innerHTML=`<span class="tcaret">▼</span><span class="tname">${esc(topic.name)}</span>`+
+      `<span class="tmeta">${files.length} file${files.length===1?'':'s'}</span>`+
+      `<span class="xlinks" style="display:none"></span>`;
+    card.appendChild(head);
+    const body=document.createElement('div'); body.className='topic-body';
+    let lastGrp=null;
+    files.forEach(f=>{
+      const ref=normRef(f.node.ref);
+      const gp=f.gpath.join(' / ');
+      if(gp!==lastGrp && gp){ const gl=document.createElement('div'); gl.className='grp-label'; gl.textContent=gp; body.appendChild(gl); lastGrp=gp; }
+      else if(!gp) lastGrp=null;
+      const cnt=ref?edgesFor(ref).length:0;
+      const fr=document.createElement('div');
+      fr.className='file-row'; fr.dataset.ref=ref;
+      fr.innerHTML=`<i class="dot file"></i><span class="fname">${esc(f.node.name)}</span>`+
+        (cnt?`<span class="lcount"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 17H7A5 5 0 0 1 7 7h2M15 7h2a5 5 0 0 1 0 10h-2M8 12h8"/></svg>${cnt}</span>`:'')+
+        (f.node.ref?`<a class="fopen" title="Open in IDE" href="${escAttr(ideHref(f.node.ref))}" onclick="event.stopPropagation()"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7M9 7h8v8"/></svg></a>`:'');
+      fr.addEventListener('click',()=>selectRelFile(ref));
+      body.appendChild(fr);
+      if(ref){ fileIndex.set(ref,{topicIdx:idx,rowEl:fr,node:f.node}); }
+    });
+    card.appendChild(body);
+    head.addEventListener('click',()=>{card.classList.toggle('collapsed');drawRel();});
+    relGrid.appendChild(card);
+    topicCards.push({idx,card,head,files:files.map(f=>normRef(f.node.ref)).filter(Boolean)});
+  });
+
+  // cross-topic link badges
+  topicCards.forEach(tc=>{
+    const set=new Set(tc.files);
+    let cross=0;
+    EDGES.forEach(e=>{ const a=normRef(e.from),b=normRef(e.to);
+      const ai=set.has(a), bi=set.has(b);
+      if(ai!==bi) cross++; });
+    if(cross){ const x=tc.head.querySelector('.xlinks'); x.style.display=''; x.textContent=(cross)+' ↔'; }
+  });
+}
+function topicHeadFor(ref){ const fi=fileIndex.get(ref); if(!fi)return null; return topicCards[fi.topicIdx].head; }
+function isFileVisible(ref){ const fi=fileIndex.get(ref); if(!fi)return false;
+  return !topicCards[fi.topicIdx].card.classList.contains('collapsed') && fi.rowEl.offsetParent!==null; }
+
+function clearRelState(){
+  relGrid.querySelectorAll('.file-row').forEach(r=>r.classList.remove('sel','connected','faded'));
+  relGrid.querySelectorAll('.topic-card').forEach(c=>c.classList.remove('connected'));
+  relSvg.innerHTML='';
+}
+function selectRelFile(ref){
+  relSelected = (relSelected===ref)?null:ref;
+  relShowAll=false; document.getElementById('relShowAll').classList.remove('active');
+  drawRel();
+}
+function anchorForEndpoint(ref){
+  // visible file row -> its row; collapsed topic -> topic header
+  if(isFileVisible(ref)){ const fi=fileIndex.get(ref); return fi.rowEl; }
+  return topicHeadFor(ref);
+}
+function drawRel(){
+  if(!hasRel) return;
+  clearRelState();
+  sizeSvg(relSvg,relBoard);
+  const NS='http://www.w3.org/2000/svg';
+  const draw=(aEl,bEl,cls)=>{
+    if(!aEl||!bEl||aEl===bEl) return;
+    const p=document.createElementNS(NS,'path');
+    p.setAttribute('d',linkPath(anchor(aEl,relBoard),anchor(bEl,relBoard)));
+    if(cls) p.setAttribute('class',cls);
+    relSvg.appendChild(p);
+  };
+  if(relShowAll){
+    EDGES.forEach(e=>{
+      const a=normRef(e.from), b=normRef(e.to);
+      if(!fileIndex.has(a)||!fileIndex.has(b)) return;
+      draw(anchorForEndpoint(a),anchorForEndpoint(b),'');
+    });
+    return;
+  }
+  if(!relSelected){ document.getElementById('relHint').textContent='click a file to trace its links'; return; }
+  const fi=fileIndex.get(relSelected);
+  if(!fi){ relSelected=null; return; }
+  // make sure the selected file's topic is expanded
+  topicCards[fi.topicIdx].card.classList.remove('collapsed');
+  fi.rowEl.classList.add('sel');
+  const links=edgesFor(relSelected);
+  const connectedFiles=new Set(), connectedTopics=new Set();
+  links.forEach(e=>{
+    const other=normRef(e.from)===relSelected?normRef(e.to):normRef(e.from);
+    if(!fileIndex.has(other)) return;
+    const oi=fileIndex.get(other);
+    if(isFileVisible(other)){ oi.rowEl.classList.add('connected'); connectedFiles.add(other); }
+    else { topicCards[oi.topicIdx].card.classList.add('connected'); connectedTopics.add(oi.topicIdx); }
+  });
+  // redraw sizing after potential expand, then paths
+  sizeSvg(relSvg,relBoard);
+  links.forEach(e=>{
+    const other=normRef(e.from)===relSelected?normRef(e.to):normRef(e.from);
+    if(!fileIndex.has(other)) return;
+    draw(fi.rowEl, anchorForEndpoint(other), 'hi');
+  });
+  document.getElementById('relHint').textContent=
+    `${esc(fi.node.name)}: ${links.length} link${links.length===1?'':'s'} · ${connectedFiles.size} file${connectedFiles.size===1?'':'s'}, ${connectedTopics.size} topic${connectedTopics.size===1?'':'s'}`;
+}
+
+/* rel controls */
+if(hasRel){
+  buildRel();
+  document.getElementById('relExpand').onclick=()=>{topicCards.forEach(tc=>tc.card.classList.remove('collapsed'));drawRel();};
+  document.getElementById('relCollapse').onclick=()=>{topicCards.forEach(tc=>tc.card.classList.add('collapsed'));relSelected=null;drawRel();};
+  document.getElementById('relClear').onclick=()=>{relSelected=null;relShowAll=false;document.getElementById('relShowAll').classList.remove('active');drawRel();};
+  document.getElementById('relShowAll').onclick=function(){relShowAll=!relShowAll;this.classList.toggle('active',relShowAll);relSelected=null;drawRel();};
+  const relq=document.getElementById('relq'); let rt;
+  relq.addEventListener('input',()=>{clearTimeout(rt);rt=setTimeout(relSearch,120);});
+}
+function relSearch(){
+  const term=document.getElementById('relq').value.trim().toLowerCase();
+  topicCards.forEach(tc=>{
+    const topic=(TREE.children||[])[tc.idx];
+    const rows=tc.card.querySelectorAll('.file-row');
+    let anyVisible=false;
+    rows.forEach(r=>{
+      const nm=r.querySelector('.fname').textContent.toLowerCase();
+      const ok=!term||nm.includes(term)||(topic.name||'').toLowerCase().includes(term);
+      r.classList.toggle('hidden',!ok); if(ok) anyVisible=true;
+    });
+    const topicMatch=!term||(topic.name||'').toLowerCase().includes(term);
+    tc.card.classList.toggle('hidden',!(anyVisible||topicMatch));
+    if(term&&(anyVisible||topicMatch)) tc.card.classList.remove('collapsed');
+  });
+  drawRel();
+}
+
+/* ============ DATABASE / ERD VIEW ============ */
+const dbBoard=document.getElementById('dbBoard'), dbGrid=document.getElementById('dbGrid'), dbSvg=document.getElementById('dbSvg');
+const tblIndex=new Map();   // tableName(lower) -> {card, head, cols:Map(colLower->rowEl)}
+const relLinks=[];          // {fromTable, fromCol, toTable, toCol}
+let dbLinesOn=true, dbHover=null;
+
+const ICON_TABLE=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>`;
+const ICON_ENUM=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>`;
+const ICON_KEY=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7.5" cy="15.5" r="3.5"/><path d="m10 13 8-8M15 5l2 2M18 8l1.5-1.5"/></svg>`;
+const ICON_LINK=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 17H7A5 5 0 0 1 7 7h2M15 7h2a5 5 0 0 1 0 10h-2M8 12h8"/></svg>`;
+
+function buildDb(){
+  if(!hasDb) return;
+  (SCHEMA.tables||[]).forEach(tbl=>{
+    const cols=tbl.columns||[];
+    const card=document.createElement('div'); card.className='tbl-card'; card.dataset.table=(tbl.name||'').toLowerCase();
+    const head=document.createElement('div'); head.className='tbl-head';
+    head.innerHTML=`${ICON_TABLE}<span class="tbl-name">${esc(tbl.name)}</span><span class="tbl-n">${cols.length}</span>`+
+      (tbl.ref?`<a class="tbl-open" title="Open in IDE" href="${escAttr(ideHref(tbl.ref))}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7M9 7h8v8"/></svg></a>`:'');
+    card.appendChild(head);
+    if(tbl.summary){ const s=document.createElement('div'); s.className='tbl-sum'; s.textContent=tbl.summary; card.appendChild(s); }
+    const colsWrap=document.createElement('div'); colsWrap.className='tbl-cols';
+    const colEls=new Map();
+    cols.forEach(col=>{
+      const isPk=!!col.pk, isFk=!!col.fk, isUq=!!col.unique, isNn=col.nullable===false && !isPk;
+      const row=document.createElement('div'); row.className='col-row'+(isPk?' pk':''); row.dataset.col=(col.name||'').toLowerCase();
+      const flags=[isPk?'<span class="flag pk">PK</span>':'',isFk?'<span class="flag fk">FK</span>':'',
+        isUq?'<span class="flag uq">UQ</span>':'',isNn?'<span class="flag nn">NN</span>':''].join('');
+      const keyIcon=isPk?`<span class="col-key is-pk">${ICON_KEY}</span>`:(isFk?`<span class="col-key is-fk">${ICON_LINK}</span>`:`<span class="col-key"></span>`);
+      row.innerHTML=`${keyIcon}<span class="col-name${isPk?' pkcol':''}">${esc(col.name)}</span>`+
+        (col.type?`<span class="col-type">${esc(col.type)}</span>`:'')+`<span class="col-flags">${flags}</span>`;
+      colsWrap.appendChild(row);
+      colEls.set((col.name||'').toLowerCase(),row);
+      if(isFk){ const m=String(col.fk).split('.'); relLinks.push({fromTable:(tbl.name||'').toLowerCase(),fromCol:(col.name||'').toLowerCase(),toTable:(m[0]||'').toLowerCase(),toCol:(m[1]||'').toLowerCase()}); }
+    });
+    card.appendChild(colsWrap);
+    card.addEventListener('mouseenter',()=>{dbHover=(tbl.name||'').toLowerCase();drawDb();});
+    card.addEventListener('mouseleave',()=>{dbHover=null;drawDb();});
+    dbGrid.appendChild(card);
+    tblIndex.set((tbl.name||'').toLowerCase(),{card,head,cols:colEls});
+  });
+  (SCHEMA.enums||[]).forEach(en=>{
+    const card=document.createElement('div'); card.className='tbl-card enum-card';
+    card.innerHTML=`<div class="tbl-head">${ICON_ENUM}<span class="tbl-name">${esc(en.name)}</span><span class="tbl-n">enum</span></div>`+
+      `<div class="enum-vals">${(en.values||[]).map(v=>`<span>${esc(v)}</span>`).join('')}</div>`;
+    dbGrid.appendChild(card);
+  });
+}
+function endpointEl(tbl,col){
+  const ti=tblIndex.get(tbl); if(!ti) return null;
+  return (col&&ti.cols.get(col))||ti.head;
+}
+function drawDb(){
+  if(!hasDb) return;
+  dbSvg.innerHTML=''; sizeSvg(dbSvg,dbBoard);
+  tblIndex.forEach(ti=>ti.card.classList.remove('connected','faded'));
+  if(!dbLinesOn) return;
+  const NS='http://www.w3.org/2000/svg';
+  const active=new Set();
+  if(dbHover){ active.add(dbHover);
+    relLinks.forEach(r=>{ if(r.fromTable===dbHover) active.add(r.toTable); if(r.toTable===dbHover) active.add(r.fromTable); }); }
+  relLinks.forEach(r=>{
+    const a=endpointEl(r.fromTable,r.fromCol), b=endpointEl(r.toTable,r.toCol);
+    if(!a||!b) return;
+    const p=document.createElementNS(NS,'path');
+    p.setAttribute('d',linkPath(anchor(a,dbBoard),anchor(b,dbBoard)));
+    const touched=r.fromTable===dbHover||r.toTable===dbHover;
+    p.setAttribute('class', dbHover?(touched?'hi':'dim'):'');
+    dbSvg.appendChild(p);
+  });
+  if(dbHover){
+    tblIndex.forEach((ti,name)=>{ if(active.has(name)) ti.card.classList.add('connected'); else ti.card.classList.add('faded'); });
+    if(tblIndex.get(dbHover)) tblIndex.get(dbHover).card.classList.remove('faded');
+  }
+}
+if(hasDb){
+  buildDb();
+  document.getElementById('dbLines').onclick=function(){dbLinesOn=!dbLinesOn;this.classList.toggle('active',dbLinesOn);drawDb();};
+  const dbq=document.getElementById('dbq'); let dt;
+  dbq.addEventListener('input',()=>{clearTimeout(dt);dt=setTimeout(dbSearch,120);});
+}
+function dbSearch(){
+  const term=document.getElementById('dbq').value.trim().toLowerCase();
+  tblIndex.forEach((ti,name)=>{
+    const cols=Array.from(ti.cols.keys()).join(' ');
+    const ok=!term||name.includes(term)||cols.includes(term);
+    ti.card.classList.toggle('hidden',!ok);
+  });
+  dbGrid.querySelectorAll('.enum-card').forEach(c=>{
+    const txt=c.textContent.toLowerCase(); c.classList.toggle('hidden',!(!term||txt.includes(term)));
+  });
+  drawDb();
+}
+
+/* ============ VIEW SWITCHER ============ */
+const IC_MAP=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="2.5"/><circle cx="5" cy="18" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="M12 7.5v4M11 13l-4.5 3M13 13l4.5 3"/></svg>`;
+const IC_REL=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="7" height="6" rx="1"/><rect x="14" y="14" width="7" height="6" rx="1"/><path d="M10 7h4a3 3 0 0 1 3 3v4"/></svg>`;
+const IC_DB=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>`;
+const switchDefs=[
+  {v:'map', ic:IC_MAP, label:'Mind Map', count:counts.function, show:true},
+  {v:'rel', ic:IC_REL, label:'Relationships', count:EDGES.length, show:hasRel},
+  {v:'db',  ic:IC_DB,  label:'Database', count:hasDb?SCHEMA.tables.length:0, show:hasDb},
+];
+const vs=document.getElementById('viewswitch');
+if(switchDefs.filter(d=>d.show).length<2){ vs.style.display='none'; }
+else{
+  vs.innerHTML=switchDefs.filter(d=>d.show).map(d=>
+    `<button data-view="${d.v}" class="${d.v==='map'?'active':''}">${d.ic}<span>${d.label}</span><span class="vcount">${d.count}</span></button>`).join('');
+  vs.querySelectorAll('button').forEach(b=>b.onclick=()=>showView(b.dataset.view));
+}
+const views={map:document.getElementById('view-map'),rel:document.getElementById('view-rel'),db:document.getElementById('view-db')};
+function showView(v){
+  Object.keys(views).forEach(k=>views[k].classList.toggle('active',k===v));
+  vs.querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
+  requestAnimationFrame(()=>{ if(v==='rel')drawRel(); if(v==='db')drawDb(); });
+}
+
+/* redraw connectors on resize */
+let rz;
+window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{
+  if(views.rel.classList.contains('active'))drawRel();
+  if(views.db.classList.contains('active'))drawDb();
+},120);});
 </script>
 </body>
 </html>

@@ -1,0 +1,48 @@
+{
+  "tables": [
+    {
+      "name": "users",
+      "ref": "migrations/001_init.sql:1",
+      "summary": "Registered application users",
+      "columns": [
+        { "name": "id", "type": "uuid", "pk": true, "nullable": false },
+        { "name": "email", "type": "varchar(255)", "unique": true, "nullable": false },
+        { "name": "name", "type": "varchar(120)", "nullable": true },
+        { "name": "created_at", "type": "timestamptz", "nullable": false }
+      ]
+    },
+    {
+      "name": "todos",
+      "ref": "migrations/002_todos.sql:1",
+      "summary": "Todo items owned by a user",
+      "columns": [
+        { "name": "id", "type": "uuid", "pk": true, "nullable": false },
+        { "name": "user_id", "type": "uuid", "fk": "users.id", "nullable": false },
+        { "name": "title", "type": "varchar(200)", "nullable": false },
+        { "name": "status", "type": "todo_status", "nullable": false },
+        { "name": "created_at", "type": "timestamptz", "nullable": false }
+      ]
+    },
+    {
+      "name": "todo_tags",
+      "ref": "migrations/003_tags.sql:1",
+      "summary": "Many-to-many join of todos and tags",
+      "columns": [
+        { "name": "todo_id", "type": "uuid", "pk": true, "fk": "todos.id", "nullable": false },
+        { "name": "tag_id", "type": "uuid", "pk": true, "fk": "tags.id", "nullable": false }
+      ]
+    },
+    {
+      "name": "tags",
+      "ref": "migrations/003_tags.sql:12",
+      "summary": "Reusable labels",
+      "columns": [
+        { "name": "id", "type": "uuid", "pk": true, "nullable": false },
+        { "name": "label", "type": "varchar(60)", "unique": true, "nullable": false }
+      ]
+    }
+  ],
+  "enums": [
+    { "name": "todo_status", "values": ["open", "in_progress", "done", "archived"] }
+  ]
+}

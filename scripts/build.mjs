@@ -10,10 +10,22 @@
 //   "ideMode":   "vscode" | "jetbrains",                (override; default from editor, else "vscode")
 //   "ideScheme": "antigravity-ide" | "vscode" | ...,    (override; vscode-mode URL scheme)
 //   "idePort":   63342,                                  (override; JetBrains built-in server port)
+//   "edges":     [ {from,to,kind?,label?}, ... ],        (optional — file relationships; or "edgesPath": JSON file)
+//   "schema":    { tables:[...], enums?:[...] },          (optional — database schema; or "schemaPath": JSON file)
 //   "title", "eyebrow", "subtitle", "footer": strings,  (page chrome; sensible defaults)
 //   "date":      "2026-06-28",                           (optional, shown in meta line)
 //   "templatePath": "/abs/renderer.html"                 (default: ../templates/renderer.html next to this script)
 // }
+//
+// The Relationships view (collapsible topic/file class-diagram) renders when "edges" is present;
+// the Database view (ERD) renders when "schema.tables" is present. Both are optional add-ons to the tree.
+//
+// edges[]:  { "from": "<repo-relative file path>", "to": "<repo-relative file path>",
+//             "kind": "import"|"call"|"extends"|"implements"|"uses"|..., "label"?: "" }
+//           from/to match file nodes by their repo-relative ref (any :line suffix is ignored).
+// schema:   { "tables": [ { "name", "ref"?, "summary"?, "columns": [
+//               { "name", "type"?, "pk"?:bool, "fk"?:"table.column", "unique"?:bool, "nullable"?:bool } ] } ],
+//             "enums"?: [ { "name", "values":[...] } ] }
 //
 // Link styles:
 //   vscode mode    -> <scheme>://file/<abs>:<line>:<col>            (VS Code, Cursor, Windsurf, Antigravity IDE)
@@ -47,6 +59,8 @@ const EDITORS = {
 };
 
 const tree = cfg.root || JSON.parse(fs.readFileSync(cfg.rootPath, 'utf8'));
+const edges = cfg.edges || (cfg.edgesPath ? JSON.parse(fs.readFileSync(cfg.edgesPath, 'utf8')) : null);
+const schema = cfg.schema || (cfg.schemaPath ? JSON.parse(fs.readFileSync(cfg.schemaPath, 'utf8')) : null);
 const outPath = cfg.outPath;
 const repoRoot = (cfg.repoRoot || '').replace(/\/+$/, '');
 const ed = (cfg.editor && EDITORS[cfg.editor]) || null;
@@ -67,6 +81,14 @@ const dec = s => typeof s === 'string' ? s.replace(/&amp;|&lt;|&gt;|&quot;|&#39;
   n.name=dec(n.name); n.summary=dec(n.summary); n.ref=dec(n.ref); n.explanation=dec(n.explanation);
   if(Array.isArray(n.steps)) n.steps=n.steps.map(dec);
   (n.children||[]).forEach(decodeWalk); })(tree);
+
+if(Array.isArray(edges)) edges.forEach(e=>{ if(!e) return;
+  e.from=dec(e.from); e.to=dec(e.to); e.kind=dec(e.kind); e.label=dec(e.label); });
+if(schema && Array.isArray(schema.tables)) schema.tables.forEach(t=>{ if(!t) return;
+  t.name=dec(t.name); t.summary=dec(t.summary); t.ref=dec(t.ref);
+  (t.columns||[]).forEach(c=>{ if(!c) return; c.name=dec(c.name); c.type=dec(c.type); c.fk=dec(c.fk); }); });
+if(schema && Array.isArray(schema.enums)) schema.enums.forEach(en=>{ if(!en) return;
+  en.name=dec(en.name); if(Array.isArray(en.values)) en.values=en.values.map(dec); });
 
 // ---- stats + quality checks ----
 const counts = { chunk:0, group:0, package:0, file:0, function:0 };
@@ -105,15 +127,66 @@ if(violations.length || fnNoDetail.length || fnNoRef.length || emptyNames.length
   process.exit(1);
 }
 
+// ---- optional add-ons: edges (Relationships view) + schema (Database view) ----
+// These are best-effort overlays: malformed entries are dropped with a warning, never a hard fail.
+const normRef = r => String(r || '').replace(/:\d+.*$/, '').replace(/^\/+/, '');
+const fileRefs = new Set();
+(function collectRefs(n){ if(!n) return; if(n.kind==='file' && n.ref) fileRefs.add(normRef(n.ref)); (n.children||[]).forEach(collectRefs); })(tree);
+
+let edgesOut = null;
+if(Array.isArray(edges)){
+  const dropped = [], unmatched = [];
+  edgesOut = edges.filter(e => {
+    if(!e || !e.from || !e.to){ dropped.push(JSON.stringify(e)); return false; }
+    const a = normRef(e.from), b = normRef(e.to);
+    if(!fileRefs.has(a)) unmatched.push(e.from);
+    if(!fileRefs.has(b)) unmatched.push(e.to);
+    return true;
+  });
+  console.log('=== RELATIONSHIPS ===');
+  console.log('edges:', edgesOut.length, '| dropped (missing from/to):', dropped.length,
+    '| endpoints not matching a tree file:', unmatched.length);
+  if(unmatched.length) console.log('  ! unmatched (drawn to the topic, not a file row):', [...new Set(unmatched)].slice(0,12).join(', '));
+}
+
+let schemaOut = null;
+if(schema && Array.isArray(schema.tables)){
+  const tableNames = new Set(schema.tables.map(t => (t.name||'').toLowerCase()));
+  const tIssuesNoName = [], cIssuesNoName = [], fkUnknown = [];
+  let colTotal = 0, fkTotal = 0;
+  schema.tables.forEach(t => {
+    if(!t.name) tIssuesNoName.push(JSON.stringify(t).slice(0,60));
+    (t.columns||[]).forEach(c => {
+      colTotal++;
+      if(!c.name) cIssuesNoName.push(t.name);
+      if(c.fk){ fkTotal++;
+        const target = String(c.fk).split('.')[0].toLowerCase();
+        if(!tableNames.has(target)) fkUnknown.push(`${t.name}.${c.name} -> ${c.fk}`); }
+    });
+  });
+  schemaOut = schema;
+  console.log('=== DATABASE ===');
+  console.log('tables:', schema.tables.length, '| columns:', colTotal, '| foreign keys:', fkTotal,
+    '| enums:', (schema.enums||[]).length);
+  if(tIssuesNoName.length) console.log('  ! tables missing name:', tIssuesNoName.length);
+  if(cIssuesNoName.length) console.log('  ! columns missing name in:', [...new Set(cIssuesNoName)].join(', '));
+  if(fkUnknown.length) console.log('  ! FK -> unknown table:', fkUnknown.slice(0,12).join(', '));
+}
+
 // ---- render ----
 let tpl = fs.readFileSync(templatePath, 'utf8');
 const meta = cfg.meta ||
   `${counts.function} functions (${explained} explained) · ${counts.package} packages · ${counts.file} files · ` +
-  `${counts.group} groups · max depth ${maxDepth} · ${totalNodes} nodes · click-to-open in ${editorLabel}` +
+  `${counts.group} groups · max depth ${maxDepth} · ${totalNodes} nodes` +
+  (edgesOut && edgesOut.length ? ` · ${edgesOut.length} relations` : '') +
+  (schemaOut && schemaOut.tables.length ? ` · ${schemaOut.tables.length} tables` : '') +
+  ` · click-to-open in ${editorLabel}` +
   (cfg.date ? ` · generated ${cfg.date}` : '');
 
 const html = tpl
   .replace('__TREE_DATA__', () => JSON.stringify(tree))
+  .replace('__EDGES_DATA__', () => JSON.stringify(edgesOut || null))
+  .replace('__SCHEMA_DATA__', () => JSON.stringify(schemaOut || null))
   .replace(/__REPO_ROOT__/g, () => repoRoot)
   .replace(/__IDE_MODE__/g, () => ideMode)
   .replace(/__IDE_SCHEME__/g, () => ideScheme)

@@ -1,0 +1,6 @@
+[
+  { "from": "src/api/handlers.ts", "to": "src/storage/todo-repo.ts", "kind": "import" },
+  { "from": "src/api/handlers.ts", "to": "src/domain/validate.ts", "kind": "import" },
+  { "from": "src/storage/todo-repo.ts", "to": "src/storage/db.ts", "kind": "import" },
+  { "from": "src/domain/validate.ts", "to": "src/domain/types.ts", "kind": "uses" }
+]
