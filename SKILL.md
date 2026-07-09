@@ -13,12 +13,13 @@ Turn any codebase into a **Miller's-rule mind map**: at every level, at most **7
 
 The hard, valuable part is **grouping**: a real package may have 30 functions, far past 7. The skill's job is to invent clean thematic **group** nodes so no level ever exceeds 7 — that is what makes the map navigable instead of a flat dump.
 
-The page has a **view switcher** at the top with up to three views (extra tabs only appear when their data is present):
+The page has a **view switcher** at the top with up to four views (extra tabs only appear when their data is present):
 - **Mind Map** — the rule-of-7 tree (always present).
+- **Guided Tour** — a self-paced **tutorial** that walks a newcomer through the codebase in short lessons, each ending in an **"aha"** moment, with a completion **progress bar** and time estimates **per lesson, per topic, and for the whole tour**. Rendered when you supply a `tutorial`. A call-to-action banner on the home page links straight into it.
 - **Relationships** — a class-diagram-style view where each top-level topic is a **collapsible block**; open a block to see its files, then click a file to trace its relationships to other files **and to other topics** (drawn as live SVG connectors). Rendered when you supply an `edges` list.
 - **Database** — a professional, modern **ERD**: table cards with typed columns, PK/FK/unique badges, and foreign-key connector lines. Rendered when you supply a `schema`.
 
-Both extra views are **optional overlays** on the same tree — produce them only when the code actually has file-to-file relationships worth showing and/or a discoverable database schema.
+All three extra views are **optional overlays** on the same tree — produce them only when they add value: a `tutorial` when the codebase is worth an onboarding walk-through, `edges` when there are file-to-file relationships worth showing, and/or a `schema` when there's a discoverable database.
 
 ## When to use
 - "Give me a mind map of the whole project / this service, down to every function."
@@ -41,9 +42,41 @@ Each node: `{ name, kind, ref?, summary?, explanation?, steps?, children? }`
 
 Group/package/file/chunk nodes don't need `explanation`/`steps` — only function leaves do.
 
-## Optional views: Relationships (`edges`) + Database (`schema`)
+## Optional views: Guided Tour (`tutorial`) + Relationships (`edges`) + Database (`schema`)
 
-Two optional data blocks, passed alongside the tree in the same config, light up two extra views. Omit either and its tab simply won't appear. Both are **best-effort overlays** — `build.mjs` never refuses to render over them; it drops malformed entries with a warning and prints add-on stats.
+Three optional data blocks, passed alongside the tree in the same config, light up extra views. Omit any and its tab simply won't appear. All are **best-effort overlays** — `build.mjs` never refuses to render over them; it drops malformed entries with a warning and prints add-on stats.
+
+### `tutorial` — the Guided Tour (onboarding) view
+A structured, self-paced walk-through: **topics**, each holding a few short **lessons**. The renderer computes time estimates (per lesson → per topic → whole tour), shows a completion **progress bar**, tracks which lessons are done (persisted in the browser via `localStorage`), and renders a home-page CTA banner that links into it. This is the answer to "the map has everything but I still can't *understand* it" — the tour gives a reader a guided path with a payoff at each step, instead of a tree to explore cold.
+```jsonc
+tutorial: {
+  "intro": "One or two sentences setting up the tour (optional).",
+  "topics": [
+    {
+      "title": "Big Picture",
+      "summary": "How a request flows through the app",   // optional, ≤ ~12 words
+      "lessons": [
+        {
+          "title": "Three layers, one direction",
+          "minutes": 2,                    // optional; est. reading time, defaults to 2, rolls up to topic + tour totals
+          "body": "Short explanation. Blank lines separate paragraphs. Inline `code` and **bold** are supported.",
+          "aha": "The single insight this lesson exists to deliver.",   // the payoff — keep it to one punchy sentence
+          "deep": false,                   // optional; mark true for a deeper-dive lesson (shows a 'deep dive' badge)
+          "code": "optional short snippet shown in a mono block",
+          "ref": "src/api/handlers.ts:12"  // optional; adds an 'Open in IDE' deep-link
+        }
+      ]
+    }
+  ]
+}
+```
+**Writing good lessons — this is the whole point of the view:**
+- **Short.** A lesson is a few sentences to a short paragraph or two — something read in 2–4 minutes, not a wall of text. Set `minutes` honestly; it drives the per-lesson, per-topic, and whole-tour time estimates and the "time left" readout.
+- **Every lesson earns its "aha".** The `aha` is the one thing the reader should *click into place* — a mental model, a "so *that's* why it's built this way", a pattern they'll now see everywhere. If a lesson has no genuine insight, merge it into a neighbour. Don't restate the title.
+- **Not too deep by default; deep only when the topic demands it.** Explain each part at a get-the-gist level. When a piece is genuinely complex (a tricky algorithm, a subtle invariant, a non-obvious design trade-off), add a `"deep": true` lesson that goes further — but keep the ordinary lessons breezy.
+- **Order for a newcomer.** Start with the big picture / how a request flows end to end, then go layer by layer or subsystem by subsystem. Keep topics to a handful of lessons each (the rule-of-7 spirit applies here too).
+- **Link to code.** Give lessons a `ref` (`path:line`) so the reader can jump from the idea straight to the source — reuse the same refs already in the tree.
+- Aim for a tour that finishes in roughly **5–20 minutes** total for a typical service; bigger systems can run longer but keep each lesson tight.
 
 ### `edges` — the Relationships (class-diagram) view
 A flat array of directed file-to-file relationships. Endpoints are matched to the tree's **file nodes by their repo-relative `ref`** (any `:line` suffix is ignored), and each file's **topic** is derived from its top-level chunk ancestor — so the renderer can draw file→file links within a topic and file→topic links across topics.
@@ -129,21 +162,23 @@ Key implementation notes (learned the hard way):
   `rg -n "^func |^func \(|^export function |^export const .*=>|^class " <path>`, then read for grouping.
 - **Require an `explanation` + `steps` for every function leaf** (see Node schema). The agent must actually READ each function body — not guess from the name — and write the step-by-step from the real control flow. This is the expensive part and the whole point of the detail panel; tell agents not to stop at file level and not to leave function leaves bare. (If a chunk comes back with function leaves missing `explanation`/`steps`, or stuck at file level, re-run just that chunk with a stricter prompt.)
 - Assemble all chunk roots under one synthetic root `{name, kind:'chunk', children:[...]}` and `return` it.
+- **Guided Tour (optional).** Once the tree is assembled, a single synthesis agent (or you, inline) can author the `tutorial` from it — it has the whole map to work from. Prompt it to write **big-picture-first**, short lessons, each with a genuine **`aha`**, honest per-lesson `minutes`, `deep:true` only where a topic truly needs depth, and `ref`s reused from the tree. This is the "I still can't understand it" fix: the map shows *what exists*, the tour teaches *how to think about it*. Do this when onboarding value is the point; skip it for a purely structural atlas.
 
-For a **small** codebase (one package, a few files) skip the Workflow and build the tree in one pass directly.
+For a **small** codebase (one package, a few files) skip the Workflow and build the tree (and, if useful, the tour) in one pass directly.
 
 ### 3. Render (interactive HTML)
 Read `./templates/renderer.html` and substitute the placeholders, then write to `~/.agent/diagrams/<name>-mindmap.html` and open it:
 - `__TREE_DATA__` → `JSON.stringify(root)` (the assembled tree).
 - `__EDGES_DATA__` → `JSON.stringify(edges)` (the file-relationship array) or `null`/`[]` to omit the Relationships view.
 - `__SCHEMA_DATA__` → `JSON.stringify(schema)` (the database schema) or `null` to omit the Database view.
+- `__TUTORIAL_DATA__` → `JSON.stringify(tutorial)` (the guided-tour lessons) or `null` to omit the Guided Tour view.
 - `__TITLE__`, `__EYEBROW__`, `__SUBTITLE__`, `__META__`, `__FOOTER__` → page chrome.
 - `__REPO_ROOT__` → the **absolute** path of the repo root (`git rev-parse --show-toplevel`). Turns repo-relative `ref`s into IDE deep-links.
 - `__IDE_MODE__` → `vscode` or `jetbrains` (which link style to emit — see below).
 - `__IDE_SCHEME__` → the vscode-family URL scheme (used when mode is `vscode`).
 - `__IDE_PORT__` → the JetBrains built-in-server port (used when mode is `jetbrains`; default `63342`).
 
-> Refs in the tree are repo-relative; safest to inject `__TREE_DATA__`, `__EDGES_DATA__`, `__SCHEMA_DATA__`, and the page-chrome strings with a function replacer (`.replace('__TREE_DATA__', () => JSON.stringify(root))`) so any `$` in the data isn't interpreted by `String.replace`. Decode HTML entities (`&amp;`→`&`, etc.) in `name`/`summary`/`explanation`/`steps`/`ref` — and in edge/schema strings (table & column names/types, edge kinds/labels) — before injecting; the renderer re-escapes, so leaving them encoded would double-escape. **Prefer `build.mjs`** (below), which does all of this for you.
+> Refs in the tree are repo-relative; safest to inject `__TREE_DATA__`, `__EDGES_DATA__`, `__SCHEMA_DATA__`, `__TUTORIAL_DATA__`, and the page-chrome strings with a function replacer (`.replace('__TREE_DATA__', () => JSON.stringify(root))`) so any `$` in the data isn't interpreted by `String.replace`. Decode HTML entities (`&amp;`→`&`, etc.) in `name`/`summary`/`explanation`/`steps`/`ref` — and in edge/schema/tutorial strings (table & column names/types, edge kinds/labels, lesson title/body/aha/code) — before injecting; the renderer re-escapes, so leaving them encoded would double-escape. **Prefer `build.mjs`** (below), which does all of this for you.
 
 **Choosing the editor link style.** Two families:
 - **VS Code family** (`__IDE_MODE__=vscode`) — clickable `scheme://file/<abs>:<line>:<col>`. Schemes: `vscode`, `vscode-insiders`, `cursor`, `windsurf`, `antigravity-ide`. (Note: Antigravity's editor app registers `antigravity-ide`; the separate `Antigravity.app` uses `antigravity` and is **not** the editor.)
@@ -151,8 +186,9 @@ Read `./templates/renderer.html` and substitute the placeholders, then write to 
 
 Pick by what the user uses — **prefer the preconfigured variants in [`editors/`](editors/)** (`code-mindmap-vscode`, `-cursor`, `-antigravity`, `-android-studio`), which just preset `editor` for `build.mjs`. To auto-detect on macOS: `for a in /Applications/*.app; do plutil -extract CFBundleURLTypes.0.CFBundleURLSchemes.0 raw "$a/Contents/Info.plist" 2>/dev/null; done` (or read `…/Contents/Resources/app/product.json`'s `urlProtocol`). Verify a scheme with `lsregister -dump | grep -i '<scheme>:'` and smoke-test `open "<scheme>://file/<abs>/<some>.go:10"`. Default to `vscode` if unsure.
 
-The renderer is self-contained (Google Fonts only) and provides: KPI strip (function/explained/package/file counts, plus relations/tables/columns when supplied, max depth), a **view switcher** (Mind Map / Relationships / Database — extra tabs auto-hidden when their data is absent), and per-view sticky toolbars.
+The renderer is self-contained (Google Fonts only) and provides: KPI strip (function/explained/package/file counts, plus relations/tables/columns and lessons/tour-time when supplied, max depth), a **view switcher** (Mind Map / Guided Tour / Relationships / Database — extra tabs auto-hidden when their data is absent), and per-view sticky toolbars.
 - **Mind Map** — **live search** (matches name, summary, ref, **and the explanation/steps text** — highlights matches, auto-expands their ancestors), **expand/collapse all**, **depth buttons (L1–L4 / all)**, kind-colored legend, connector-railed collapsible tree. Function leaves with detail show a caret; clicking opens an inline panel ("what it does" + numbered "how it works"). Clicking a leaf with no detail, or any node's `ref ↗`, deep-links the file/line into the editor.
+- **Guided Tour** — a two-pane tutorial: a topic/lesson sidebar (per-topic progress ring + minute counts) and a reading pane (crumb, time & "deep dive" badges, formatted body, an "Aha" callout, optional code + IDE deep-link). A top progress bar tracks completion and "~N min to finish"; **prev / mark-done-&-continue** navigation; progress is saved in the browser (`localStorage`) and a **reset** button clears it. A home-page CTA banner links straight in.
 - **Relationships** — each top-level topic is a **collapsible card**; open it to see its files (grouped by their sub-path). Click a file to trace its links — connected files in expanded topics highlight and get SVG connectors; connected files in collapsed topics draw a line to that **topic** card. "Show all links", expand/collapse all, per-topic search, and a per-file "open in IDE" affordance.
 - **Database** — an ERD board (dotted grid) of **table cards**: gradient header with row count, columns with monospace names, right-aligned types, and PK/FK/UQ/NN badges; PK rows tinted. Foreign keys draw as faint connector lines that brighten on table hover (dimming the rest). Optional enum cards. Table/column search; each table deep-links to its `ref`.
 
@@ -170,20 +206,22 @@ Open with `open ~/.agent/diagrams/<name>-mindmap.html` (macOS) / `xdg-open` (Lin
 - **IDE links resolve** — all `__…__` placeholders substituted (none left in the output); a sampled `ref ↗` opens the right file/line in the editor.
 - **Relationships (if `edges`)** — most edge endpoints resolve to real file nodes (check the `endpoints not matching a tree file` warning is low); the Relationships tab appears; clicking a file draws connectors. Don't ship a hairball — prune to meaningful, deduped links.
 - **Database (if `schema`)** — the Database tab appears; every `fk` points at an existing table (check the `FK -> unknown table` warning is empty); types and PK/FK badges look right; don't invent tables that aren't in the source.
+- **Guided Tour (if `tutorial`)** — the Guided Tour tab + home CTA appear; every lesson has a real **`aha`** (check the `lessons with no "aha"` warning) and a `body`; lessons are short and ordered big-picture-first; time estimates read sensibly; `deep` is reserved for genuinely complex topics; sampled `ref`s deep-link correctly.
 
 ### Validate + render in one step
 
-`./scripts/build.mjs` does all of the above — entity-decode (tree **and** edges/schema), the full tree quality gate (≤7 children, every function leaf has `explanation`+`steps`+`ref`, no empty names, no starved chunks), edges/schema validation, placeholder substitution, and write — refusing to render on any tree violation. Write a small config and run it:
+`./scripts/build.mjs` does all of the above — entity-decode (tree **and** edges/schema/tutorial), the full tree quality gate (≤7 children, every function leaf has `explanation`+`steps`+`ref`, no empty names, no starved chunks), edges/schema/tutorial validation, placeholder substitution, and write — refusing to render on any tree violation. Write a small config and run it:
 
 ```
 node ./scripts/build.mjs /path/to/config.json
 # config.json: { root, outPath, repoRoot, editor, title, eyebrow, subtitle, footer, date,
-#                edges?, schema? }
+#                edges?, schema?, tutorial? }
 # editor: "vscode" | "cursor" | "windsurf" | "antigravity-ide" | "android-studio" | "intellij" | ...
 #         (or override directly with ideMode / ideScheme / idePort)
-# root   = the assembled tree;   or rootPath   = a JSON file holding it
-# edges  = the relationships[];  or edgesPath  = a JSON file holding it   (optional → Relationships view)
-# schema = the DB schema object; or schemaPath = a JSON file holding it   (optional → Database view)
+# root     = the assembled tree;   or rootPath     = a JSON file holding it
+# edges    = the relationships[];  or edgesPath    = a JSON file holding it   (optional → Relationships view)
+# schema   = the DB schema object; or schemaPath   = a JSON file holding it   (optional → Database view)
+# tutorial = the tour object;      or tutorialPath = a JSON file holding it   (optional → Guided Tour view)
 ```
 
-It resolves `editor` → link mode/scheme/port via a built-in registry and auto-builds the `__META__` line from the computed stats (adding `· N relations` / `· N tables` when present). `edges`/`schema` are **best-effort overlays**: malformed entries are dropped with a warning (never a hard fail), and it prints a `=== RELATIONSHIPS ===` / `=== DATABASE ===` stats block — check the unmatched-endpoint and unknown-FK counts there. Prefer this over hand-rolling the substitution so the contract is always enforced. See [`examples/`](examples/) for a full `edges` + `schema` sample (`node scripts/build.mjs examples/sample.config.json`).
+It resolves `editor` → link mode/scheme/port via a built-in registry and auto-builds the `__META__` line from the computed stats (adding `· N relations` / `· N tables` / `· N-lesson tour` when present). `edges`/`schema`/`tutorial` are **best-effort overlays**: malformed entries are dropped with a warning (never a hard fail), and it prints `=== RELATIONSHIPS ===` / `=== DATABASE ===` / `=== TUTORIAL ===` stats blocks — check the unmatched-endpoint, unknown-FK, and missing-"aha" counts there. Prefer this over hand-rolling the substitution so the contract is always enforced. See [`examples/`](examples/) for a full `edges` + `schema` + `tutorial` sample (`node scripts/build.mjs examples/sample.config.json`).

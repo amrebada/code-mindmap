@@ -12,13 +12,21 @@
 //   "idePort":   63342,                                  (override; JetBrains built-in server port)
 //   "edges":     [ {from,to,kind?,label?}, ... ],        (optional — file relationships; or "edgesPath": JSON file)
 //   "schema":    { tables:[...], enums?:[...] },          (optional — database schema; or "schemaPath": JSON file)
+//   "tutorial":  { intro?, topics:[...] },                (optional — Guided Tour lessons; or "tutorialPath": JSON file)
 //   "title", "eyebrow", "subtitle", "footer": strings,  (page chrome; sensible defaults)
 //   "date":      "2026-06-28",                           (optional, shown in meta line)
 //   "templatePath": "/abs/renderer.html"                 (default: ../templates/renderer.html next to this script)
 // }
 //
 // The Relationships view (collapsible topic/file class-diagram) renders when "edges" is present;
-// the Database view (ERD) renders when "schema.tables" is present. Both are optional add-ons to the tree.
+// the Database view (ERD) renders when "schema.tables" is present; the Guided Tour view (progress-tracked
+// lessons with per-lesson/topic/tour time estimates) renders when "tutorial.topics" is present.
+// All three are optional add-ons to the tree.
+//
+// tutorial: { "intro"?: "", "topics": [ { "title", "summary"?, "lessons": [
+//               { "title", "body", "aha"?, "minutes"?:num, "deep"?:bool, "code"?, "ref"?:"path:line" } ] } ] }
+//           Lessons are short; "aha" is the one-line payoff; "minutes" defaults to 2 and rolls up to
+//           per-topic and whole-tour time estimates + a completion progress bar (persisted in the browser).
 //
 // edges[]:  { "from": "<repo-relative file path>", "to": "<repo-relative file path>",
 //             "kind": "import"|"call"|"extends"|"implements"|"uses"|..., "label"?: "" }
@@ -61,6 +69,7 @@ const EDITORS = {
 const tree = cfg.root || JSON.parse(fs.readFileSync(cfg.rootPath, 'utf8'));
 const edges = cfg.edges || (cfg.edgesPath ? JSON.parse(fs.readFileSync(cfg.edgesPath, 'utf8')) : null);
 const schema = cfg.schema || (cfg.schemaPath ? JSON.parse(fs.readFileSync(cfg.schemaPath, 'utf8')) : null);
+const tutorial = cfg.tutorial || (cfg.tutorialPath ? JSON.parse(fs.readFileSync(cfg.tutorialPath, 'utf8')) : null);
 const outPath = cfg.outPath;
 const repoRoot = (cfg.repoRoot || '').replace(/\/+$/, '');
 const ed = (cfg.editor && EDITORS[cfg.editor]) || null;
@@ -89,6 +98,11 @@ if(schema && Array.isArray(schema.tables)) schema.tables.forEach(t=>{ if(!t) ret
   (t.columns||[]).forEach(c=>{ if(!c) return; c.name=dec(c.name); c.type=dec(c.type); c.fk=dec(c.fk); }); });
 if(schema && Array.isArray(schema.enums)) schema.enums.forEach(en=>{ if(!en) return;
   en.name=dec(en.name); if(Array.isArray(en.values)) en.values=en.values.map(dec); });
+if(tutorial){ tutorial.intro=dec(tutorial.intro);
+  if(Array.isArray(tutorial.topics)) tutorial.topics.forEach(tp=>{ if(!tp) return;
+    tp.title=dec(tp.title); tp.summary=dec(tp.summary);
+    if(Array.isArray(tp.lessons)) tp.lessons.forEach(ls=>{ if(!ls) return;
+      ls.title=dec(ls.title); ls.body=dec(ls.body); ls.aha=dec(ls.aha); ls.code=dec(ls.code); ls.ref=dec(ls.ref); }); }); }
 
 // ---- stats + quality checks ----
 const counts = { chunk:0, group:0, package:0, file:0, function:0 };
@@ -173,6 +187,41 @@ if(schema && Array.isArray(schema.tables)){
   if(fkUnknown.length) console.log('  ! FK -> unknown table:', fkUnknown.slice(0,12).join(', '));
 }
 
+// ---- optional add-on: tutorial (Guided Tour view) ----
+// Best-effort overlay like edges/schema: malformed topics/lessons are dropped with a warning, never a hard fail.
+let tutorialOut = null;
+if(tutorial && Array.isArray(tutorial.topics)){
+  const droppedTopics = [], droppedLessons = [], noAha = [], badRef = [];
+  const topics = tutorial.topics.map(tp => {
+    if(!tp || !tp.title || !Array.isArray(tp.lessons)){ droppedTopics.push(JSON.stringify(tp).slice(0,60)); return null; }
+    const lessons = tp.lessons.filter(ls => {
+      if(!ls || !ls.title || !ls.body){ droppedLessons.push(`${tp.title}/${ls && ls.title || '?'}`); return false; }
+      if(!ls.aha) noAha.push(`${tp.title}/${ls.title}`);
+      if(ls.ref && !/^[^:]+(:\d+)?/.test(String(ls.ref))) badRef.push(`${tp.title}/${ls.title}`);
+      return true;
+    });
+    if(!lessons.length){ droppedTopics.push(tp.title); return null; }
+    return { ...tp, lessons };
+  }).filter(Boolean);
+
+  if(topics.length){
+    tutorialOut = { ...tutorial, topics };
+    const lessonCount = topics.reduce((s,t)=>s+t.lessons.length,0);
+    const min = ls => (typeof ls.minutes==='number' && ls.minutes>0) ? ls.minutes : 2;
+    const totalMin = topics.reduce((s,t)=>s+t.lessons.reduce((a,l)=>a+min(l),0),0);
+    const deep = topics.reduce((s,t)=>s+t.lessons.filter(l=>l.deep).length,0);
+    console.log('=== TUTORIAL ===');
+    console.log('topics:', topics.length, '| lessons:', lessonCount, '| deep dives:', deep, '| est. time: ~'+totalMin+' min');
+    if(droppedTopics.length) console.log('  ! dropped topics (missing title/lessons):', droppedTopics.length);
+    if(droppedLessons.length) console.log('  ! dropped lessons (missing title/body):', droppedLessons.slice(0,12).join(', '));
+    if(noAha.length) console.log('  ! lessons with no "aha" (recommended):', noAha.slice(0,12).join(', '));
+    if(badRef.length) console.log('  ! lessons with a malformed ref:', badRef.slice(0,12).join(', '));
+  } else {
+    console.log('=== TUTORIAL ===');
+    console.log('  ! no valid topics after validation — Guided Tour view omitted');
+  }
+}
+
 // ---- render ----
 let tpl = fs.readFileSync(templatePath, 'utf8');
 const meta = cfg.meta ||
@@ -180,6 +229,7 @@ const meta = cfg.meta ||
   `${counts.group} groups · max depth ${maxDepth} · ${totalNodes} nodes` +
   (edgesOut && edgesOut.length ? ` · ${edgesOut.length} relations` : '') +
   (schemaOut && schemaOut.tables.length ? ` · ${schemaOut.tables.length} tables` : '') +
+  (tutorialOut ? ` · ${tutorialOut.topics.reduce((s,t)=>s+t.lessons.length,0)}-lesson tour` : '') +
   ` · click-to-open in ${editorLabel}` +
   (cfg.date ? ` · generated ${cfg.date}` : '');
 
@@ -187,6 +237,7 @@ const html = tpl
   .replace('__TREE_DATA__', () => JSON.stringify(tree))
   .replace('__EDGES_DATA__', () => JSON.stringify(edgesOut || null))
   .replace('__SCHEMA_DATA__', () => JSON.stringify(schemaOut || null))
+  .replace('__TUTORIAL_DATA__', () => JSON.stringify(tutorialOut || null))
   .replace(/__REPO_ROOT__/g, () => repoRoot)
   .replace(/__IDE_MODE__/g, () => ideMode)
   .replace(/__IDE_SCHEME__/g, () => ideScheme)

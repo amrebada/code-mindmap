@@ -10,12 +10,13 @@ Every function leaf gets a plain-English **"what it does"** and a step-by-step *
 
 ## What you get
 
-A single HTML file (no build step, no server, just Google Fonts) with a **view switcher** across up to three views (the extra two appear only when their data is present):
+A single HTML file (no build step, no server, just Google Fonts) with a **view switcher** across up to four views (the extras appear only when their data is present):
 
 - **🧠 Mind Map** — the rule-of-7 tree: chunks → thematic groups → packages → files → functions. No node ever has more than 7 children, so it stays navigable instead of a flat dump.
   - **Function detail panels** — click any function to read *what it does* + a numbered *how it works* walkthrough of the real control flow.
   - **Live search** — matches names, summaries, refs, **and** the explanation/steps text; highlights hits and auto-expands their ancestors.
   - **Expand/collapse all, depth buttons (L1–L4 / all)**, a KPI strip, and built-in light + dark themes.
+- **🎓 Guided Tour** *(when you supply `tutorial`)* — a self-paced **onboarding walk-through** for when the map shows *everything* but you still can't get your bearings. Short lessons grouped into topics, each ending in an **"aha"** moment; a **progress bar** and time estimates **per lesson, per topic, and for the whole tour**; completion is remembered in your browser. A home-page banner links straight in. Lessons deep-link to the code and go deeper only where a topic truly needs it.
 - **🔗 Relationships** *(when you supply `edges`)* — a class-diagram-style view where each top-level topic is a **collapsible block**. Open a block to see its files, then click a file to trace its relationships to other files **and to other topics**, drawn as live SVG connectors. "Show all links", per-topic search, expand/collapse all.
 - **🗄️ Database** *(when a schema is found)* — a professional, modern **ERD**: table cards with typed columns and PK / FK / UQ / NN badges, foreign-key connector lines that brighten on hover, optional enum cards, and table/column search. Detected from SQL migrations, Prisma/Drizzle, Django/SQLAlchemy, Rails, TypeORM, GORM, and more.
 - **Click-to-open in your editor** — every function / file / table deep-links to its exact line (`vscode://`, `cursor://`, `antigravity-ide://`, or the JetBrains built-in server for Android Studio).
@@ -90,6 +91,7 @@ node scripts/build.mjs config.json
   "rootPath":   "./tree.json",                // the assembled tree (or "root": <object>)
   "edgesPath":  "./edges.json",               // optional → Relationships view (or "edges": [...])
   "schemaPath": "./schema.json",              // optional → Database view    (or "schema": {...})
+  "tutorialPath": "./tutorial.json",          // optional → Guided Tour view (or "tutorial": {...})
   "outPath":    "./mymap.html",
   "repoRoot":   "/abs/path/to/repo",          // git rev-parse --show-toplevel
   "editor":     "cursor",                     // vscode | cursor | antigravity-ide | android-studio | ...

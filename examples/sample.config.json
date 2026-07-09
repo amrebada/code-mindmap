@@ -2,6 +2,7 @@
   "rootPath": "./examples/sample-tree.json",
   "edgesPath": "./examples/sample-edges.json",
   "schemaPath": "./examples/sample-schema.json",
+  "tutorialPath": "./examples/sample-tutorial.json",
   "outPath": "./examples/sample-mindmap.html",
   "repoRoot": "/path/to/your/checkout",
   "editor": "vscode",

@@ -1,0 +1,65 @@
+{
+  "intro": "A five-minute guided tour of the Todo service. Follow the lessons top to bottom; each one is short and ends in an \"aha\".",
+  "topics": [
+    {
+      "title": "Big Picture",
+      "summary": "How a request flows through the app",
+      "lessons": [
+        {
+          "title": "Three layers, one direction",
+          "minutes": 2,
+          "body": "The whole service is just three layers stacked in a line: **API** (HTTP handlers) → **Domain** (validation & types) → **Storage** (the database).\n\nA request only ever flows *down* the stack, and data flows back *up*. No layer reaches around another — the API never touches the database directly, it always goes through Storage.",
+          "aha": "If you can name which of the three layers a file lives in, you already know 80% of what it's allowed to do."
+        },
+        {
+          "title": "Follow one request end to end",
+          "minutes": 3,
+          "body": "`POST /todos` lands in `createTodo` (API). It hands the raw body to `validateTodoInput` (Domain). If that passes, it calls `insert` (Storage), which writes a row and returns the saved todo. The handler serializes that to JSON with a `201`.\n\nEvery write path in the app is a variation of this same three-step dance.",
+          "aha": "\"Validate, then persist, then serialize\" is the shape of every mutation — once you see it once, the rest of the handlers read themselves.",
+          "ref": "src/api/handlers.ts:12"
+        }
+      ]
+    },
+    {
+      "title": "The Domain Layer",
+      "summary": "Why validation lives in its own layer",
+      "lessons": [
+        {
+          "title": "Trust nothing at the edge",
+          "minutes": 2,
+          "body": "`validateTodoInput` takes an *untrusted* object and returns either a clean value or a list of field errors. The handler never trusts the request body — it trusts the thing validation hands back.",
+          "aha": "The boundary between \"untrusted input\" and \"trusted data\" is a single function call. Everything after it is safe to use.",
+          "ref": "src/domain/validate.ts:6"
+        },
+        {
+          "title": "Type guards make the compiler your ally",
+          "minutes": 3,
+          "deep": true,
+          "body": "`isStatus` is a *type guard*: a function that returns a boolean, but whose signature (`x is TodoStatus`) tells TypeScript to narrow the type when it returns true.\n\nThat's why the status field can be a plain string coming in, but a strict union everywhere downstream — the guard is the one place the narrowing happens, and the compiler enforces it for free after that.",
+          "aha": "A type guard is runtime validation and compile-time proof at the same time — one small function buys you safety in both worlds.",
+          "ref": "src/domain/types.ts:9"
+        }
+      ]
+    },
+    {
+      "title": "The Storage Layer",
+      "summary": "How the app talks to the database safely",
+      "lessons": [
+        {
+          "title": "One tiny function guards every query",
+          "minutes": 2,
+          "body": "Every read and write in the app funnels through `query` in `db.ts`. It grabs a client from the pool, runs a **parameterized** statement, and always releases the client in a `finally` block.",
+          "aha": "Because there's exactly one door to the database, SQL-injection safety and connection cleanup are solved once — not re-argued in every repository method.",
+          "ref": "src/storage/db.ts:14"
+        },
+        {
+          "title": "The repository speaks Todos, not SQL",
+          "minutes": 2,
+          "body": "`insert` and `list` in `todo-repo.ts` are the only functions that know the table's column names. They take and return `Todo` objects; the rest of the app never sees a raw row.",
+          "aha": "Change the schema and only the repository changes — the shape of that blast radius is the whole point of having a storage layer.",
+          "ref": "src/storage/todo-repo.ts:8"
+        }
+      ]
+    }
+  ]
+}
