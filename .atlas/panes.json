@@ -29,6 +29,12 @@
       "sessionId": "de1d4458-7193-4c72-9dd6-c9110b68d469"
     },
     {
+      "id": "f32e2ba8-a954-4c68-b4ad-584f7c032029",
+      "kind": "shell",
+      "title": "code-mindmap",
+      "cwd": "/Users/administrator/workspace/code-mindmap"
+    },
+    {
       "id": "76eb88e2-3bf5-45e9-becf-beaf2b2d4f59",
       "kind": "script",
       "title": "rerun",
@@ -36,5 +42,5 @@
       "scriptId": "npm:rerun"
     }
   ],
-  "activePaneId": "ef5c8e72-b4d9-4fbe-a89f-03d22e5893c4"
+  "activePaneId": "f32e2ba8-a954-4c68-b4ad-584f7c032029"
 }
